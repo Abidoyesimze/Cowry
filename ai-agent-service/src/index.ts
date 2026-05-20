@@ -7,6 +7,7 @@ import { createMessageParser } from "./parseMessage.js";
 import { fetchTxReceiptStatus } from "./txStatus.js";
 import { getAgentWallet } from "./agent/wallet.js";
 import { getAgentIdStatus } from "./agent/selfId.js";
+import { getBridgeQuote, getBridgeStatus, formatBridgeSummary } from "./lifi/bridgeClient.js";
 
 const app = express();
 app.use(express.json());
@@ -112,6 +113,71 @@ app.post("/tx-status", async (req: Request, res: Response) => {
     });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+// ── LI.FI cross-chain bridge ──────────────────────────────────────────────────
+
+/**
+ * POST /bridge/quote
+ * Body: { fromChainId, fromTokenAddress, fromAmount, fromAddress, toToken, toAddress }
+ * Returns: { quote, summary, transactionRequest }
+ *
+ * The frontend signs transactionRequest on the source chain, then polls /bridge/status.
+ */
+app.post("/bridge/quote", async (req: Request, res: Response) => {
+  const { fromChainId, fromTokenAddress, fromAmount, fromAddress, toToken, toAddress } = req.body ?? {};
+
+  if (!fromChainId || !fromTokenAddress || !fromAmount || !fromAddress || !toToken || !toAddress) {
+    res.status(400).json({
+      error: "Required: fromChainId, fromTokenAddress, fromAmount, fromAddress, toToken (USDm|USDC), toAddress",
+    });
+    return;
+  }
+  if (toToken !== "USDm" && toToken !== "USDC") {
+    res.status(400).json({ error: "toToken must be 'USDm' or 'USDC'" });
+    return;
+  }
+
+  try {
+    const quote = await getBridgeQuote({
+      fromChainId: Number(fromChainId),
+      fromTokenAddress,
+      fromAmount: String(fromAmount),
+      fromAddress,
+      toToken,
+      toAddress,
+    });
+    res.json({
+      quoteId: quote.id,
+      tool: quote.tool,
+      summary: formatBridgeSummary(quote),
+      transactionRequest: quote.transactionRequest,
+      estimate: quote.estimate,
+    });
+  } catch (e) {
+    res.status(502).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+/**
+ * GET /bridge/status?txHash=0x...&fromChainId=1
+ * Poll after broadcasting the bridge tx. Status: PENDING | DONE | FAILED | NOT_FOUND
+ */
+app.get("/bridge/status", async (req: Request, res: Response) => {
+  const txHash = req.query.txHash as string;
+  const fromChainId = Number(req.query.fromChainId);
+
+  if (!txHash || !fromChainId) {
+    res.status(400).json({ error: "Required query params: txHash, fromChainId" });
+    return;
+  }
+
+  try {
+    const status = await getBridgeStatus(txHash, fromChainId);
+    res.json(status);
+  } catch (e) {
+    res.status(502).json({ error: e instanceof Error ? e.message : String(e) });
   }
 });
 
