@@ -25,8 +25,8 @@ export type ResolveGroupResult =
 
 export type TxMeta = {
   chainId: number;
-  usdm: `0x${string}`;
-  sendrPay: `0x${string}`;
+  /** CowryPay contract address — used as the spender in token approvals */
+  cowryPay: `0x${string}`;
 };
 
 export type ResolutionDeps = {

@@ -76,13 +76,10 @@ export function createMockResolutionDeps(ctx: ResolverContext): ResolutionDeps {
       return `Your groups (mock):\n${lines.join("\n")}`;
     },
     async getMeta(): Promise<TxMeta> {
-      const chainId = Number(process.env.CHAIN_ID || 10143);
-      const usdc = (process.env.USDC_ADDRESS ||
-        "0x0000000000000000000000000000000000000000") as `0x${string}`;
+      const chainId = Number(process.env.CHAIN_ID || 42220);
       return {
         chainId,
-        usdc,
-        sendrPay: cowrypayContract.address,
+        cowryPay: cowrypayContract.address,
       };
     },
     async adminCreateGroup(displayName: string, memberHandles: string[]) {

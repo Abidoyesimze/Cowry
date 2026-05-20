@@ -6,7 +6,6 @@ import { encodeRegisterUsername } from "../chain/encodeUserRegistry.js";
 import {
   formatGroupsLinesForWallet,
   isWalletRegisteredOnChain,
-  readUsdmAddress,
   resolveGroupByNameOnChain,
   resolveUsernameOnChain,
 } from "../chain/reads.js";
@@ -45,8 +44,7 @@ export function createChainResolutionDeps(rpcUrl: string): ResolutionDeps {
     },
     getMeta: async (): Promise<TxMeta> => ({
       chainId,
-      usdm: await readUsdmAddress(client),
-      sendrPay: cowrypayContract.address,
+      cowryPay: cowrypayContract.address,
     }),
     adminCreateGroup: async (displayName: string, memberHandles: string[]) => {
       const trimmed = displayName.trim();

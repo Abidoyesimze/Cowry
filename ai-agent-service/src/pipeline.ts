@@ -17,7 +17,13 @@ import {
   formatUsdcFromBase,
   totalBaseUnitsFromTxPlan,
 } from "./chain/usdcReadiness.js";
-import { USDC_DECIMALS, usdcBaseUnitsFromHuman } from "./chain/usdcAmount.js";
+import {
+  DEFAULT_TOKEN,
+  getTokenBySymbol,
+  getTokenByAddress,
+  toBaseUnits,
+  fromBaseUnits,
+} from "./chain/tokenConfig.js";
 import {
   clearDraft,
   getPendingDraft,
@@ -57,7 +63,7 @@ function chainAdminGate(
   wallet: `0x${string}` | undefined,
 ): string | null {
   if (deps.mode !== "chain") {
-    return "Group admin commands need **chain mode**. Set **MONAD_RPC_URL** (or **RPC_URL**).";
+    return "Group admin commands need **chain mode**. Set **CELO_RPC_URL** (or **RPC_URL**).";
   }
   if (!deps.publicClient) {
     return "No RPC client.";
@@ -74,33 +80,31 @@ function shortAddr(a: string): string {
   return `${x.slice(0, 6)}…${x.slice(-4)}`;
 }
 
-/** Split total USDC (human) into `count` integer micro-USDC shares; sums exactly. */
-function splitTotalUsdcMicro(
+/** Split a total human amount into `count` equal shares (token-aware). Sums exactly. */
+function splitEqualShares(
   totalHuman: number,
   count: number,
+  decimals: number,
 ): { human: number; baseUnits: bigint }[] {
-  const totalMicro = BigInt(Math.round(totalHuman * 1_000_000));
-  const base = totalMicro / BigInt(count);
-  const rem = Number(totalMicro - base * BigInt(count));
-  const out: { human: number; baseUnits: bigint }[] = [];
-  for (let i = 0; i < count; i++) {
-    const micro = base + BigInt(i < rem ? 1 : 0);
-    out.push({
-      human: Number(micro) / 1_000_000,
-      baseUnits: micro,
-    });
-  }
-  return out;
+  const factor = 10 ** decimals;
+  const totalBase = BigInt(Math.round(totalHuman * factor));
+  const base = totalBase / BigInt(count);
+  const rem = Number(totalBase - base * BigInt(count));
+  return Array.from({ length: count }, (_, i) => {
+    const units = base + BigInt(i < rem ? 1 : 0);
+    return { human: Number(units) / factor, baseUnits: units };
+  });
 }
 
 function buildPreviewLines(
   recipients: { username: string; amount: number }[],
+  tokenSymbol: string,
 ): string {
   const lines = recipients.map(
-    (r) => `• @${r.username}: ${r.amount.toLocaleString()} USDC (each)`,
+    (r) => `• @${r.username}: ${r.amount.toLocaleString()} ${tokenSymbol}`,
   );
   const total = recipients.reduce((s, r) => s + r.amount, 0);
-  return `${lines.join("\n")}\nTotal: ${total.toLocaleString()} USDC`;
+  return `${lines.join("\n")}\nTotal: ${total.toLocaleString()} ${tokenSymbol}`;
 }
 
 function policyCheck(
@@ -141,76 +145,68 @@ async function buildWelcomeMessage(
   return lines.join("\n");
 }
 
-async function maybeUsdcReadinessBlock(
+async function maybeTokenReadinessBlock(
   deps: ResolutionDeps,
   wallet: `0x${string}`,
   plan: DraftTxPlan,
 ): Promise<ChatResponse | null> {
   if (deps.mode !== "chain" || !deps.publicClient) return null;
   const meta = await deps.getMeta();
+  const tokenAddr = plan.token as `0x${string}`;
+  const tokenInfo = getTokenByAddress(tokenAddr);
   const required = totalBaseUnitsFromTxPlan(plan);
   const r = await checkUsdcReadiness(
     deps.publicClient,
-    meta.usdc,
+    tokenAddr,
     wallet,
-    meta.sendrPay,
+    meta.cowryPay,
     required,
   );
   if (r.ok) return null;
 
-  const bal = formatUsdcFromBase(r.balance);
-  const alw = formatUsdcFromBase(r.allowance);
-  const req = formatUsdcFromBase(r.required);
+  const bal = fromBaseUnits(r.balance,  tokenInfo.decimals);
+  const alw = fromBaseUnits(r.allowance, tokenInfo.decimals);
+  const req = fromBaseUnits(r.required,  tokenInfo.decimals);
+  const sym = tokenInfo.symbol;
 
   if (r.reason === "insufficient_balance") {
     return {
       type: "clarify",
-      question: `Not enough USDC: this payment needs **${req} USDC** but your balance is **${bal} USDC**. Fund your wallet, then try again.`,
+      question: `Not enough ${sym}: this payment needs **${req} ${sym}** but your balance is **${bal} ${sym}**. Fund your wallet, then try again.`,
     };
   }
 
   const approveTx = encodedCallToJson(
-    encodeErc20Approve(meta.usdc, meta.sendrPay, r.required),
+    encodeErc20Approve(tokenAddr, meta.cowryPay, r.required),
   );
   return {
     type: "clarify",
-    question: `CowryPay needs permission to pull **${req} USDC**; your USDC allowance for CowryPay is only **${alw} USDC**. Sign **approve** below (sets allowance to **${req} USDC** for this spender), then send the same payment again and **confirm**.`,
+    question: `CowryPay needs permission to pull **${req} ${sym}**; your ${sym} allowance for CowryPay is only **${alw} ${sym}**. Sign **approve** below, then send the same payment again and **confirm**.`,
     transactions: [approveTx],
   };
 }
 
 function encodeTxPlan(plan: DraftTxPlan) {
+  const token = plan.token as `0x${string}`;
   switch (plan.mode) {
     case "pay":
       return [
-        encodedCallToJson(
-          encodePay(plan.to as `0x${string}`, BigInt(plan.amountBaseUnits)),
-        ),
+        encodedCallToJson(encodePay(token, plan.to as `0x${string}`, BigInt(plan.amountBaseUnits))),
       ];
     case "payGroupEqual":
       return [
-        encodedCallToJson(
-          encodePayGroupEqual(
-            BigInt(plan.groupId),
-            BigInt(plan.amountPerMemberBaseUnits),
-          ),
-        ),
+        encodedCallToJson(encodePayGroupEqual(token, BigInt(plan.groupId), BigInt(plan.amountPerMemberBaseUnits))),
       ];
     case "payMany":
       return plan.items.map((i) =>
-        encodedCallToJson(
-          encodePay(i.to as `0x${string}`, BigInt(i.amountBaseUnits)),
-        ),
+        encodedCallToJson(encodePay(token, i.to as `0x${string}`, BigInt(i.amountBaseUnits))),
       );
     case "payGroupSplit":
       return [
-        encodedCallToJson(
-          encodePayGroupSplit(
-            BigInt(plan.groupId),
-            BigInt(plan.totalBaseUnits),
-          ),
-        ),
+        encodedCallToJson(encodePayGroupSplit(token, BigInt(plan.groupId), BigInt(plan.totalBaseUnits))),
       ];
+    default:
+      throw new Error(`Unhandled plan mode: ${(plan as { mode: string }).mode}`);
   }
 }
 
@@ -226,6 +222,11 @@ export async function paymentFromIntent(
     return { ok: false, question: "Not a payment command." };
   }
 
+  // Resolve token: use what the user said ("USDm" / "USDC") or default to USDm
+  const tokenInfo = intent.token ? getTokenBySymbol(intent.token) : DEFAULT_TOKEN;
+  const tokenAddress = tokenInfo.address;
+  const tokenSymbol  = tokenInfo.symbol;
+
   if (intent.action === "SEND_SINGLE") {
     const amount = intent.amount;
     const handle = intent.recipient;
@@ -239,15 +240,16 @@ export async function paymentFromIntent(
         question: `Cannot resolve @${r.username}: ${r.reason ?? "unknown"}`,
       };
     }
-    const base = usdcBaseUnitsFromHuman(amount);
+    const base = toBaseUnits(amount, tokenInfo.decimals);
     const recipients = [
       { username: r.username, address: r.address, amount },
     ];
     const policy = policyCheck(recipients);
     if (policy) return { ok: false, question: policy };
-    const preview = buildPreviewLines(recipients);
+    const preview = buildPreviewLines(recipients, tokenSymbol);
     const txPlan: DraftTxPlan = {
       mode: "pay",
+      token: tokenAddress,
       to: r.address,
       amountHuman: amount,
       amountBaseUnits: base.toString(),
@@ -297,7 +299,7 @@ export async function paymentFromIntent(
     if (!g.ok) {
       return { ok: false, question: g.reason };
     }
-    const perBase = usdcBaseUnitsFromHuman(per);
+    const perBase = toBaseUnits(per, tokenInfo.decimals);
 
     if (g.kind === "onchain") {
       const recipients = g.members.map((addr) => ({
@@ -307,10 +309,11 @@ export async function paymentFromIntent(
       }));
       const policy = policyCheck(recipients);
       if (policy) return { ok: false, question: policy };
-      const preview = buildPreviewLines(recipients);
+      const preview = buildPreviewLines(recipients, tokenSymbol);
       const totalAmount = per * g.members.length;
       const txPlan: DraftTxPlan = {
         mode: "payGroupEqual",
+        token: tokenAddress,
         groupId: g.groupId.toString(),
         amountPerMemberHuman: per,
         amountPerMemberBaseUnits: perBase.toString(),
@@ -335,13 +338,13 @@ export async function paymentFromIntent(
     }));
     const policy = policyCheck(recipients);
     if (policy) return { ok: false, question: policy };
-    const preview = buildPreviewLines(recipients);
+    const preview = buildPreviewLines(recipients, tokenSymbol);
     const items = recipients.map((r) => ({
       to: r.address,
       amountHuman: per,
       amountBaseUnits: perBase.toString(),
     }));
-    const txPlan: DraftTxPlan = { mode: "payMany", items };
+    const txPlan: DraftTxPlan = { mode: "payMany", token: tokenAddress, items };
     const totalAmount = per * recipients.length;
     return {
       ok: true,
@@ -389,9 +392,9 @@ export async function paymentFromIntent(
     if (!g.ok) {
       return { ok: false, question: g.reason };
     }
-    const totalBase = usdcBaseUnitsFromHuman(total);
+    const totalBase = toBaseUnits(total, tokenInfo.decimals);
     const n = g.members.length;
-    const shares = splitTotalUsdcMicro(total, n);
+    const shares = splitEqualShares(total, n, tokenInfo.decimals);
     const recipients =
       g.kind === "onchain"
         ? g.members.map((addr, i) => ({
@@ -406,11 +409,12 @@ export async function paymentFromIntent(
           }));
     const policy = policyCheck(recipients);
     if (policy) return { ok: false, question: policy };
-    const preview = `${buildPreviewLines(recipients)}\n(One **payGroupSplit** tx on-chain; preview shows an even micro-split for display.)`;
+    const preview = `${buildPreviewLines(recipients, tokenSymbol)}\n(One **payGroupSplit** tx on-chain; preview shows an even micro-split for display.)`;
 
     if (g.kind === "onchain") {
       const txPlan: DraftTxPlan = {
         mode: "payGroupSplit",
+        token: tokenAddress,
         groupId: g.groupId.toString(),
         totalHuman: total,
         totalBaseUnits: totalBase.toString(),
@@ -440,7 +444,7 @@ export async function paymentFromIntent(
         recipients,
         totalAmount: total,
         preview,
-        txPlan: { mode: "payMany", items },
+        txPlan: { mode: "payMany", token: tokenAddress, items },
       },
     };
   }
@@ -476,7 +480,7 @@ export async function paymentFromIntent(
       }
       resolved.push({ username: r.username, address: r.address });
     }
-    const shares = splitTotalUsdcMicro(total, resolved.length);
+    const shares = splitEqualShares(total, resolved.length, tokenInfo.decimals);
     const recipients = resolved.map((r, i) => ({
       username: r.username,
       address: r.address,
@@ -484,13 +488,13 @@ export async function paymentFromIntent(
     }));
     const policy = policyCheck(recipients);
     if (policy) return { ok: false, question: policy };
-    const preview = buildPreviewLines(recipients);
+    const preview = buildPreviewLines(recipients, tokenSymbol);
     const items = resolved.map((r, i) => ({
       to: r.address,
       amountHuman: shares[i]!.human,
       amountBaseUnits: shares[i]!.baseUnits.toString(),
     }));
-    const txPlan: DraftTxPlan = { mode: "payMany", items };
+    const txPlan: DraftTxPlan = { mode: "payMany", token: tokenAddress, items };
     return {
       ok: true,
       draft: {
@@ -561,11 +565,12 @@ export async function adminFromIntent(
       };
     }
     const meta = await deps.getMeta();
-    const base = usdcBaseUnitsFromHuman(amt);
-    const tx = encodeErc20Approve(meta.usdc, meta.sendrPay, base);
+    const approveToken = intent.token ? getTokenBySymbol(intent.token) : DEFAULT_TOKEN;
+    const base = toBaseUnits(amt, approveToken.decimals);
+    const tx = encodeErc20Approve(approveToken.address, meta.cowryPay, base);
     return {
       kind: "info",
-      message: `Sign **USDC.approve** so CowryPay can pull up to **${amt} USDC** (approve more if you plan several payments).`,
+      message: `Sign **${approveToken.symbol}.approve** so CowryPay can pull up to **${amt} ${approveToken.symbol}** (approve more if you plan several payments).`,
       transactions: [encodedCallToJson(tx)],
     };
   }
@@ -955,7 +960,7 @@ export async function handleUserMessage(
         };
       }
       if (deps.publicClient) {
-        const block = await maybeUsdcReadinessBlock(
+        const block = await maybeTokenReadinessBlock(
           deps,
           walletAddress,
           pending.txPlan,
@@ -966,6 +971,7 @@ export async function handleUserMessage(
     setPendingDraft(sessionId, null);
     clearDraft(pending.draftId);
     const meta = await deps.getMeta();
+    const tokenInfo = getTokenByAddress(pending.txPlan.token);
     const transactions = encodeTxPlan(pending.txPlan);
     return {
       type: "tx_ready",
@@ -973,9 +979,9 @@ export async function handleUserMessage(
       preview: pending.preview,
       tx: {
         chainId: meta.chainId,
-        usdc: { address: meta.usdc, decimals: USDC_DECIMALS },
-        sendrPay: meta.sendrPay,
-        note: "USDC balance and allowance were checked for this pull. Sign below with the same wallet as walletAddress.",
+        token: { address: tokenInfo.address, symbol: tokenInfo.symbol, decimals: tokenInfo.decimals },
+        cowryPay: meta.cowryPay,
+        note: "Token balance and allowance were checked. Sign below with the same wallet as walletAddress.",
         transactions,
       },
     };
@@ -1053,7 +1059,7 @@ export async function handleUserMessage(
   if (!p.ok) return { type: "clarify", question: p.question };
 
   if (deps.mode === "chain" && deps.publicClient && walletAddress) {
-    const block = await maybeUsdcReadinessBlock(
+    const block = await maybeTokenReadinessBlock(
       deps,
       walletAddress,
       p.draft.txPlan,
