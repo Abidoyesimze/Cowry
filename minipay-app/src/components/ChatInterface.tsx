@@ -7,6 +7,7 @@ import { useChat }       from "@/hooks/useChat";
 import { MessageBubble } from "./MessageBubble";
 import { BridgePanel }   from "./BridgePanel";
 import { RegisterScreen } from "./RegisterScreen";
+import { CommandMenu }   from "./CommandMenu";
 import type { Message }  from "@/lib/types";
 
 const SUGGESTIONS = [
@@ -26,8 +27,9 @@ export function ChatInterface() {
   const { messages, loading, txLoading, send, confirm, cancel, signAndSend, addBotMessage, bottomRef } =
     useChat(address ?? null);
 
-  const [input,      setInput]      = useState("");
-  const [showBridge, setShowBridge] = useState(false);
+  const [input,       setInput]       = useState("");
+  const [showBridge,  setShowBridge]  = useState(false);
+  const [showCommands, setShowCommands] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleSend = () => {
@@ -203,12 +205,23 @@ export function ChatInterface() {
 
       {/* Input bar */}
       <div className="bg-cowry-dark border-t border-cowry-border px-3 py-3 flex items-center gap-2 flex-shrink-0">
+        {/* Commands button */}
+        <button
+          onClick={() => setShowCommands(true)}
+          className="w-10 h-10 bg-cowry-card border border-cowry-border rounded-full flex items-center justify-center flex-shrink-0 hover:border-cowry-blue/40 hover:text-cowry-blue text-cowry-muted transition-all"
+          title="Browse commands"
+        >
+          <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/>
+          </svg>
+        </button>
+
         <input
           ref={inputRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKey}
-          placeholder="Send a message…"
+          placeholder="Type a command or message…"
           disabled={loading}
           className="flex-1 bg-cowry-card border border-cowry-border rounded-full px-4 py-2.5 text-sm text-white placeholder-cowry-muted outline-none focus:border-cowry-blue/50 disabled:opacity-50 transition-colors"
         />
@@ -229,6 +242,17 @@ export function ChatInterface() {
           walletAddress={address}
           onClose={() => setShowBridge(false)}
           onSuccess={(msg) => { setShowBridge(false); addBotMessage(msg); }}
+        />
+      )}
+
+      {/* Command menu */}
+      {showCommands && (
+        <CommandMenu
+          onSelect={(template) => {
+            setInput(template);
+            setTimeout(() => inputRef.current?.focus(), 50);
+          }}
+          onClose={() => setShowCommands(false)}
         />
       )}
     </div>
