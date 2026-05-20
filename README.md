@@ -1,8 +1,8 @@
-# Sendr — Conversational Crypto Payments on Monad
+# Sendr — Conversational Crypto Payments 
 
 > **Send money as easily as sending a message.**
 
-Sendr is a WhatsApp-style AI-powered payment application built on the Monad blockchain. It eliminates the complexity of traditional crypto payments by letting users send funds, manage groups, and automate financial actions through simple, natural language commands — no wallet addresses, no confusing interfaces, just conversation.
+Sendr is a WhatsApp-style AI-powered payment application built on the blockchain. It eliminates the complexity of traditional crypto payments by letting users send funds, manage groups, and automate financial actions through simple, natural language commands — no wallet addresses, no confusing interfaces, just conversation.
 
 ---
 
@@ -24,6 +24,22 @@ Sendr is a WhatsApp-style AI-powered payment application built on the Monad bloc
 - [Team](#team)
 
 ---
+
+## Demo Video
+https://drive.google.com/file/d/1Hu-T1Ef_0FCUVetr5JuEiEP7RYdGUMCl/view?usp=drivesdk
+
+## Monad contract deployment
+UsernameRegistry: 0x1264e8ab9e98e2575856b831e606af43bac0fe65,
+    GroupRegistry: 0x5008a18adc0f828d1057fb5af7ad9599ff67f62c,
+    SendrPay: 0x6602f2ee7b05cc382e654bcafbb692bd813f9efa
+
+## BNB contract deployment
+UsernameRegistry
+0x1264e8ab9e98e2575856b831e606af43bac0fe65
+GroupRegistry
+0x5008a18adc0f828d1057fb5af7ad9599ff67f62c
+SendrPay
+0x6602f2ee7b05cc382e654bcafbb692bd813f9efa
 
 ## The Problem
 
@@ -200,7 +216,7 @@ Sendr: Here's your payment summary:
        ┌────────────────────────────┐
        │ To:      @ada              │
        │ Amount:  $2,000            │
-       │ Network: Monad             │
+       │ Network:              │
        │ Fee:     ~$0.002           │
        └────────────────────────────┘
        Confirm or Cancel?
@@ -237,7 +253,7 @@ Sendr: Here's your payment summary:
        │ Group:   Friends (3 people)│
        │ Each:    $2,000            │
        │ Total:   $6,000            │
-       │ Network: Monad             │
+       │ Network:              │
        │ Fee:     ~$0.003           │
        └────────────────────────────┘
        Confirm or Cancel?
@@ -275,7 +291,7 @@ Sendr is composed of three integrated layers:
 │         Automation Engine (recurring/conditional txns)  │
 └─────────────────────────────────────────────────────────┘
                               │
-                      MONAD BLOCKCHAIN
+                       BLOCKCHAIN
 ```
 
 ---
@@ -373,20 +389,6 @@ Before generating a confirmation prompt, the AI applies a set of safety heuristi
 - **Unresolved username:** Notifies the user if a mentioned username does not exist on-chain
 
 ---
-
-
-## Why Monad
-
-Sendr is purpose-built for Monad because Monad's technical properties directly address the core requirements of a payment application at scale:
-
-- **High throughput:** Monad's parallel execution enables thousands of transactions per second, making real-time group payments and automation viable without congestion
-- **Low latency:** Near-instant transaction finality means users see their payments confirmed in seconds, not minutes
-- **Low fees:** Micropayments — splitting a ₦500 snack or sending ₦200 for a bet — are only economically viable when transaction fees are negligible
-- **EVM compatibility:** Full compatibility with Ethereum tooling (Solidity, ethers.js, Hardhat) accelerates development and enables ecosystem integrations
-- **Emerging ecosystem:** Building on Monad early positions Sendr to grow alongside the ecosystem and capture a first-mover advantage in social payments on the network
-
----
-
 
 ## Use Cases
 
