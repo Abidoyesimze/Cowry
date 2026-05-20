@@ -3,14 +3,15 @@ import type { Message } from "@/lib/types";
 import { TransactionCard } from "./TransactionCard";
 
 interface Props {
-  message: Message;
-  onConfirm: () => void;
-  onCancel:  () => void;
-  onSign:    (txs: Message["response"] & { type: "tx_ready" }) => void;
-  txLoading: boolean;
+  message:    Message;
+  onConfirm:  () => void;
+  onCancel:   () => void;
+  onSign:     (r: Message["response"] & { type: "tx_ready" }) => void;
+  onApprove?: (txs: NonNullable<Extract<Message["response"], { type: "clarify" }>["transactions"]>) => void;
+  txLoading:  boolean;
 }
 
-export function MessageBubble({ message, onConfirm, onCancel, onSign, txLoading }: Props) {
+export function MessageBubble({ message, onConfirm, onCancel, onSign, onApprove, txLoading }: Props) {
   const isUser = message.role === "user";
   const r = message.response;
 
@@ -27,6 +28,16 @@ export function MessageBubble({ message, onConfirm, onCancel, onSign, txLoading 
         >
           {message.text}
         </div>
+
+        {/* Approve button — shown when agent sends approve calldata with a clarify response */}
+        {r?.type === "clarify" && r.transactions && r.transactions.length > 0 && onApprove && (
+          <button
+            onClick={() => onApprove(r.transactions!)}
+            className="w-full mt-1 bg-amber-500 text-white text-sm font-semibold py-2.5 px-4 rounded-xl active:opacity-80 transition-opacity"
+          >
+            Sign Approve Transaction
+          </button>
+        )}
 
         {/* Special cards for draft / tx_ready */}
         {r?.type === "draft" && (

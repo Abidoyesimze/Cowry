@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { useWallet } from "@/hooks/useWallet";
 import { useChat }   from "@/hooks/useChat";
 import { MessageBubble } from "./MessageBubble";
@@ -15,7 +15,7 @@ const SUGGESTIONS = [
 
 export function ChatInterface() {
   const { address, shortAddress, inMiniPay, loading: walletLoading, connect, isConnected } = useWallet();
-  const { messages, loading, txLoading, send, confirm, cancel, signAndSend, bottomRef } = useChat(address ?? null);
+  const { messages, loading, txLoading, send, confirm, cancel, signAndSend, addBotMessage, bottomRef } = useChat(address ?? null);
   const [input,       setInput]       = useState("");
   const [showBridge,  setShowBridge]  = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -118,6 +118,7 @@ export function ChatInterface() {
             onConfirm={confirm}
             onCancel={cancel}
             onSign={(r) => handleSign(r as Extract<Message["response"], { type: "tx_ready" }>)}
+            onApprove={(txs) => signAndSend(txs, "USDm")}
             txLoading={txLoading}
           />
         ))}
@@ -170,8 +171,7 @@ export function ChatInterface() {
           onClose={() => setShowBridge(false)}
           onSuccess={(msg) => {
             setShowBridge(false);
-            // Inject as bot message via send hook
-            send(msg);
+            addBotMessage(msg);
           }}
         />
       )}

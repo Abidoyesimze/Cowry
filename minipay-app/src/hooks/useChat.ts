@@ -85,7 +85,11 @@ export function useChat(walletAddress: string | null) {
     [addMessage],
   );
 
-  return { messages, loading, txLoading, send, confirm, cancel, signAndSend, bottomRef };
+  const addBotMessage = useCallback((text: string) => {
+    addMessage({ role: "bot", text });
+  }, [addMessage]);
+
+  return { messages, loading, txLoading, send, confirm, cancel, signAndSend, addBotMessage, bottomRef };
 }
 
 function responseToText(r: ChatResponse): string {
