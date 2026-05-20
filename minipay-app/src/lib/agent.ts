@@ -2,8 +2,8 @@ import type { ChatResponse, ChainInfo, BridgeQuoteResult, BridgeStatus } from ".
 
 function base(): string {
   // In production/staging: set NEXT_PUBLIC_AGENT_URL to the hosted agent URL.
-  // In local dev: empty string → calls /api/* which Next.js proxies to the agent service.
-  return process.env.NEXT_PUBLIC_AGENT_URL ?? "";
+  // In local dev: /api → Next.js proxies /api/* to the agent service on 3001.
+  return process.env.NEXT_PUBLIC_AGENT_URL ?? "/api";
 }
 
 async function post<T>(path: string, body: unknown): Promise<T> {
