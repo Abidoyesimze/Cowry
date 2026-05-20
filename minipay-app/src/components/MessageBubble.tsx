@@ -16,30 +16,40 @@ export function MessageBubble({ message, onConfirm, onCancel, onSign, onApprove,
   const r = message.response;
 
   return (
-    <div className={`flex ${isUser ? "justify-end" : "justify-start"} mb-2`}>
-      <div className={`max-w-[85%] ${isUser ? "items-end" : "items-start"} flex flex-col gap-1`}>
-        {/* Main bubble */}
+    <div className={`flex ${isUser ? "justify-end" : "justify-start"} gap-2`}>
+
+      {/* Bot avatar */}
+      {!isUser && (
+        <div className="w-6 h-6 rounded-full bg-cowry-card border border-cowry-border flex-shrink-0 mt-1 flex items-center justify-center text-[10px]">
+          🐚
+        </div>
+      )}
+
+      <div className={`max-w-[82%] flex flex-col gap-1.5 ${isUser ? "items-end" : "items-start"}`}>
+
+        {/* Bubble */}
         <div
-          className={`px-4 py-2.5 rounded-2xl text-sm whitespace-pre-wrap leading-relaxed ${
+          className={`px-3.5 py-2.5 rounded-2xl text-sm whitespace-pre-wrap leading-relaxed ${
             isUser
-              ? "bg-cowry-primary text-white rounded-br-sm"
-              : "bg-white text-gray-800 rounded-bl-sm shadow-sm border border-gray-100"
+              ? "bg-cowry-blue text-cowry-darker font-medium rounded-br-sm"
+              : "bg-cowry-card border border-cowry-border text-white rounded-bl-sm"
           }`}
         >
           {message.text}
         </div>
 
-        {/* Approve button — shown when agent sends approve calldata with a clarify response */}
+        {/* Approve button */}
         {r?.type === "clarify" && r.transactions && r.transactions.length > 0 && onApprove && (
           <button
             onClick={() => onApprove(r.transactions!)}
-            className="w-full mt-1 bg-amber-500 text-white text-sm font-semibold py-2.5 px-4 rounded-xl active:opacity-80 transition-opacity"
+            disabled={txLoading}
+            className="text-xs bg-amber-500/10 border border-amber-500/30 text-amber-300 hover:bg-amber-500/20 px-4 py-2 rounded-xl font-medium transition-all disabled:opacity-50 flex items-center gap-1.5"
           >
-            Sign Approve Transaction
+            {txLoading ? "Approving…" : <><span>🔑</span> Approve Token Spend</>}
           </button>
         )}
 
-        {/* Special cards for draft / tx_ready */}
+        {/* Transaction cards */}
         {r?.type === "draft" && (
           <TransactionCard
             type="draft"
@@ -61,7 +71,7 @@ export function MessageBubble({ message, onConfirm, onCancel, onSign, onApprove,
           />
         )}
 
-        <span className="text-[10px] text-gray-400 px-1">
+        <span className="text-[10px] text-cowry-border px-1">
           {message.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
         </span>
       </div>

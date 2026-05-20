@@ -7,7 +7,7 @@ export const viewport: Viewport = {
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="h-full flex flex-col max-w-md mx-auto bg-white shadow-sm">
+    <div className="h-full flex flex-col max-w-md mx-auto bg-cowry-dark shadow-xl shadow-black/40">
       {children}
     </div>
   );
