@@ -22,7 +22,7 @@ export function encodePay(
     to: sendrpayContract.address,
     data,
     value: "0x0",
-    description: `SendrPay.pay(token → ${to})`,
+    description: `CowryPay.pay(token → ${to})`,
   };
 }
 
@@ -40,7 +40,7 @@ export function encodePayGroupEqual(
     to: sendrpayContract.address,
     data,
     value: "0x0",
-    description: `SendrPay.payGroupEqual(group ${groupId}, ${amountPerMemberBaseUnits} per member)`,
+    description: `CowryPay.payGroupEqual(group ${groupId}, ${amountPerMemberBaseUnits} per member)`,
   };
 }
 
@@ -58,7 +58,7 @@ export function encodePayGroupSplit(
     to: sendrpayContract.address,
     data,
     value: "0x0",
-    description: `SendrPay.payGroupSplit(group ${groupId}, total ${totalAmountBaseUnits} base units)`,
+    description: `CowryPay.payGroupSplit(group ${groupId}, total ${totalAmountBaseUnits} base units)`,
   };
 }
 

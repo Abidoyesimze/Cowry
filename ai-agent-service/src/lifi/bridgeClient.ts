@@ -15,7 +15,7 @@
 import { CELO_USDM_ADDRESS, CELO_USDC_ADDRESS } from "./celoTokens.js";
 
 const LIFI_BASE  = "https://li.quest/v1";
-const INTEGRATOR = process.env.LIFI_INTEGRATOR?.trim() || "sendpay";
+const INTEGRATOR = process.env.LIFI_INTEGRATOR?.trim() || "cowry";
 
 export const CELO_CHAIN_ID = 42220;
 

@@ -24,7 +24,7 @@ export async function isWalletRegisteredOnChain(
   return hash !== ZERO_HASH;
 }
 
-/** Default payment token (USDC). Set USDC_ADDRESS in .env; must be whitelisted on SendrPay. */
+/** Default payment token (USDC). Set USDC_ADDRESS in .env; must be whitelisted on CowryPay. */
 export async function readUsdcAddress(
   client: PublicClient,
 ): Promise<`0x${string}`> {
@@ -41,7 +41,7 @@ export async function readUsdcAddress(
   });
   if (!supported) {
     throw new Error(
-      `Token ${candidate} is not whitelisted on SendrPay at ${sendrpayContract.address}`,
+      `Token ${candidate} is not whitelisted on CowryPay at ${sendrpayContract.address}`,
     );
   }
   return candidate;
