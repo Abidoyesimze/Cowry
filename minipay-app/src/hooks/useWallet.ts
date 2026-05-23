@@ -68,13 +68,41 @@ export function useWallet() {
     };
     init();
 
-    // React to chain changes from the user manually switching in wallet
-    const provider = (window as unknown as { ethereum?: { on?: (e: string, fn: (id: string) => void) => void } }).ethereum;
-    const handleChainChange = (hexId: string) => {
-      const id = parseInt(hexId, 16);
+    // Typed provider reference for event listeners
+    type Provider = {
+      on?:          (event: string, fn: (...args: unknown[]) => void) => void;
+      removeListener?: (event: string, fn: (...args: unknown[]) => void) => void;
+    };
+    const provider = (window as unknown as { ethereum?: Provider }).ethereum;
+
+    // chainChanged — update wrongChain flag and re-check chain
+    const handleChainChange = (hexId: unknown) => {
+      const id = parseInt(String(hexId), 16);
       setWrongChain(id !== 42220);
     };
-    provider?.on?.("chainChanged", handleChainChange);
+
+    // accountsChanged — fired by MiniPay when the active account switches
+    const handleAccountsChange = (accounts: unknown) => {
+      const list = accounts as string[];
+      const next = (list[0] ?? null) as `0x${string}` | null;
+      setAddress(next);
+      if (next) {
+        checkRegistration(next);
+      } else {
+        // Disconnected
+        setUsername(null);
+        setRegState("unknown");
+      }
+    };
+
+    provider?.on?.("chainChanged",    handleChainChange);
+    provider?.on?.("accountsChanged", handleAccountsChange);
+
+    // Cleanup — prevent memory leaks on unmount
+    return () => {
+      provider?.removeListener?.("chainChanged",    handleChainChange);
+      provider?.removeListener?.("accountsChanged", handleAccountsChange);
+    };
   }, [connect, checkRegistration]);
 
   /** Called by RegisterScreen once the on-chain registration is confirmed. */
