@@ -19,6 +19,7 @@ export const adminActionSchema = z.enum([
   "CANCEL_GROUP",
   "LIST_GROUPS",
   "HELP",
+  "BALANCE",
   "CHAT",
 ]);
 
@@ -43,7 +44,7 @@ export const parsedIntentSchema = z.discriminatedUnion("kind", [
     members: z.array(z.string()).optional(),
     groupName: z.string().optional(),
     note: z.string().optional(),
-    /** Token symbol the user specified ("USDm" or "USDC"). Defaults to USDm if omitted. */
+    /** Token symbol the user specified ("USDm" or "USDC"). Defaults to USDC if omitted. */
     token: z.string().optional(),
   }),
   z.object({
@@ -53,7 +54,7 @@ export const parsedIntentSchema = z.discriminatedUnion("kind", [
     username: z.string().optional(),
     /** APPROVE_USDC: human amount to approve for CowryPay */
     amount: z.number().positive().optional(),
-    /** APPROVE_USDC: token symbol — "USDm" or "USDC". Defaults to USDm if omitted. */
+    /** APPROVE_USDC: token symbol — "USDm" or "USDC". Defaults to USDC if omitted. */
     token: z.string().optional(),
     groupName: z.string().optional(),
     /** ADD_MEMBERS / REMOVE_MEMBERS / CANCEL_GROUP */

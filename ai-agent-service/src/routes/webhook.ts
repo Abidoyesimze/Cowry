@@ -548,14 +548,15 @@ async function handleCommand(phone: string, text: string, user: User): Promise<v
   }
 
   // Build tx payload
-  const txPayload = buildTxPayload(resolved, user.walletAddress);
+  const chainClient = getChainClient();
+  const paymentToken = await readUsdcAddress(chainClient);
+  const txPayload = buildTxPayload(resolved, paymentToken);
 
   // ── USDC balance check ────────────────────────────────────────────────────
   try {
-    const client      = getChainClient();
-    const usdcAddress = await readUsdcAddress(client);
+    const usdcAddress = paymentToken;
     const required    = usdcBaseUnitsFromHuman(resolved.totalAmount);
-    const balance     = await readErc20Balance(client, usdcAddress, user.walletAddress as `0x${string}`);
+    const balance     = await readErc20Balance(chainClient, usdcAddress, user.walletAddress as `0x${string}`);
 
     if (balance < required) {
       const has  = (Number(balance)   / 1_000_000).toFixed(2);

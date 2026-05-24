@@ -15,7 +15,7 @@ import { usdcBaseUnitsFromHuman } from "../chain/usdcAmount.js";
 
 export function buildTxPayload(
   resolved: ResolvedPayment,
-  _fromAddress: string,
+  token: `0x${string}`,
 ): TxPayload {
   if (!resolved.recipients.length) {
     throw new Error("No recipients in the resolved payment.");
@@ -24,6 +24,7 @@ export function buildTxPayload(
   if (resolved.recipients.length === 1) {
     const r = resolved.recipients[0]!;
     const call = encodePay(
+      token,
       r.address as `0x${string}`,
       usdcBaseUnitsFromHuman(r.amount),
     );
@@ -33,7 +34,7 @@ export function buildTxPayload(
   // On-chain group payment → single payGroupEqual tx
   if (resolved.groupId !== undefined) {
     const perMember = usdcBaseUnitsFromHuman(resolved.recipients[0]!.amount);
-    const call = encodePayGroupEqual(resolved.groupId, perMember);
+    const call = encodePayGroupEqual(token, resolved.groupId, perMember);
     return { to: call.to, data: call.data, value: call.value };
   }
 

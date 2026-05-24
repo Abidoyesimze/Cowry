@@ -1,5 +1,3 @@
-import type { PublicClient } from "viem";
-
 export type TxReceiptStatus = {
   txHash: `0x${string}`;
   status: "pending" | "success" | "failed";
@@ -7,8 +5,18 @@ export type TxReceiptStatus = {
   gasUsed?: string;
 };
 
+/** Minimal RPC surface so callers are not tied to a specific viem install. */
+export type TxStatusReader = {
+  getTransactionReceipt(args: { hash: `0x${string}` }): Promise<{
+    status: "success" | "reverted";
+    blockNumber: bigint;
+    gasUsed: bigint;
+  }>;
+  getTransaction(args: { hash: `0x${string}` }): Promise<unknown>;
+};
+
 export async function fetchTxReceiptStatus(
-  client: PublicClient,
+  client: TxStatusReader,
   hash: `0x${string}`,
 ): Promise<TxReceiptStatus> {
   const receipt = await client

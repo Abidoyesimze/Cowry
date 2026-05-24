@@ -38,11 +38,32 @@ describe("ruleParse", () => {
     });
   });
 
+  it("parses send with explicit USDC token", () => {
+    expect(ruleParse("Send 1 USDC to @simi")).toMatchObject({
+      kind: "payment",
+      action: "SEND_SINGLE",
+      amount: 1,
+      recipient: "simi",
+      token: "USDC",
+    });
+  });
+
+  it("parses send with explicit USDm token", () => {
+    expect(ruleParse("send 5 usdm to @alice")).toMatchObject({
+      kind: "payment",
+      action: "SEND_SINGLE",
+      amount: 5,
+      recipient: "alice",
+      token: "USDm",
+    });
+  });
+
   it("parses approve usdc for cowry", () => {
     expect(ruleParse("approve 250 usdc for cowry")).toMatchObject({
       kind: "admin",
       action: "APPROVE_USDC",
       amount: 250,
+      token: "USDC",
     });
   });
 
@@ -117,7 +138,8 @@ describe("handleUserMessage", () => {
     if (d2.type === "tx_ready") {
       expect(d2.tx.transactions.length).toBe(1);
       expect(d2.tx.transactions[0]!.data).toMatch(/^0x[a-fA-F0-9]+$/);
-      expect(d2.tx.usdc.decimals).toBe(6);
+      expect(d2.tx.token.decimals).toBe(6);
+      expect(d2.tx.token.symbol).toBe("USDC");
     }
   });
 

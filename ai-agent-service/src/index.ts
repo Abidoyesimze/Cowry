@@ -11,7 +11,8 @@ import {
   getBridgeQuote,
   getBridgeStatus,
   formatBridgeSummary,
-  SUPPORTED_CHAINS,
+  getCeloBridgeSource,
+  getCeloOutboundDestinations,
 } from "./lifi/bridgeClient.js";
 
 const app = express();
@@ -125,18 +126,20 @@ app.post("/tx-status", async (req: Request, res: Response) => {
 
 /**
  * GET /bridge/chains
- * Returns the list of supported chains with their USDC/USDm token addresses.
- * Frontend uses this to build the chain + token selector.
+ * Returns Celo as source (USDC/USDm) and destination chains (USDC only).
  */
 app.get("/bridge/chains", (_req: Request, res: Response) => {
-  res.json({ chains: Object.values(SUPPORTED_CHAINS) });
+  res.json({
+    source: getCeloBridgeSource(),
+    destinations: getCeloOutboundDestinations(),
+  });
 });
 
 /**
- * POST /bridge/quote  — bidirectional (inbound to Celo OR outbound from Celo)
+ * POST /bridge/quote  — Celo (USDC/USDm) → other chain (USDC)
  *
  * Body:
- *   fromChainId       — source chain ID  (e.g. 1, 8453, 42220)
+ *   fromChainId       — must be 42220 (Celo)
  *   fromTokenAddress  — token address on source chain
  *   fromAmount        — amount in base units as string  (e.g. "100000000")
  *   fromAddress       — sender wallet address
@@ -216,9 +219,13 @@ app.get("/bridge/status", async (req: Request, res: Response) => {
 
 const port = Number(process.env.PORT) || 3001;
 app.listen(port, () => {
-  const { address } = getAgentWallet();
   console.log(`Cowry agent  →  http://localhost:${port}  (resolution: ${deps.mode})`);
-  console.log(`Agent wallet →  ${address}`);
+  try {
+    const { address } = getAgentWallet();
+    console.log(`Agent wallet →  ${address}`);
+  } catch {
+    console.warn(`Agent wallet →  (AGENT_PRIVATE_KEY not set — /agent/info unavailable)`);
+  }
   console.log(`Agent info   →  GET http://localhost:${port}/agent/info`);
   console.log(`Chat         →  POST http://localhost:${port}/chat`);
 });

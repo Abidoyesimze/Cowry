@@ -151,8 +151,10 @@ export type ChatResponse =
   | {
       type: "clarify";
       question: string;
-      /** Optional USDC.approve calldata when allowance is too low */
+      /** Optional ERC-20 approve calldata when allowance is too low */
       transactions?: EncodedTxJson[];
+      /** Token for approve/sign flows (USDC or USDm) */
+      tokenSymbol?: string;
     }
   | {
       type: "draft";
@@ -161,6 +163,8 @@ export type ChatResponse =
       action: PaymentAction;
       recipients: { username: string; address: string; amount: number }[];
       totalAmount: number;
+      /** USDC or USDm for this payment */
+      tokenSymbol: string;
     }
   | {
       type: "tx_ready";
@@ -172,6 +176,14 @@ export type ChatResponse =
         cowryPay: string;
         note: string;
         transactions: EncodedTxJson[];
+      };
+      /**
+       * Cowry AI agent (AGENT_PRIVATE_KEY). Payment txs are still signed by the
+       * user's wallet; this is identity + ERC-8004 registration, not the tx `from`.
+       */
+      agent?: {
+        address: string;
+        erc8004?: { registered: boolean; agentId?: string; hint?: string };
       };
     }
   | {

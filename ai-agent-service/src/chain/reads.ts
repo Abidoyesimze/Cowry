@@ -106,6 +106,9 @@ export async function readUsdmAddress(
   return addr as `0x${string}`;
 }
 
+/** CowryPay payment token (USDm) — alias used by webhook and scripts. */
+export const readUsdcAddress = readUsdmAddress;
+
 export async function resolveUsernameOnChain(
   client: PublicClient,
   handle: string,
