@@ -7,7 +7,10 @@ interface Props {
   onConfirm:  () => void;
   onCancel:   () => void;
   onSign:     (r: Message["response"] & { type: "tx_ready" }) => void;
-  onApprove?: (txs: NonNullable<Extract<Message["response"], { type: "clarify" }>["transactions"]>) => void;
+  onApprove?: (
+    txs: NonNullable<Extract<Message["response"], { type: "clarify" }>["transactions"]>,
+    tokenSymbol?: string,
+  ) => void;
   txLoading:  boolean;
 }
 
@@ -41,11 +44,15 @@ export function MessageBubble({ message, onConfirm, onCancel, onSign, onApprove,
         {/* Approve button */}
         {r?.type === "clarify" && r.transactions && r.transactions.length > 0 && onApprove && (
           <button
-            onClick={() => onApprove(r.transactions!)}
+            onClick={() => onApprove(r.transactions!, r.tokenSymbol)}
             disabled={txLoading}
             className="text-xs bg-amber-500/10 border border-amber-500/30 text-amber-300 hover:bg-amber-500/20 px-4 py-2 rounded-xl font-medium transition-all disabled:opacity-50 flex items-center gap-1.5"
           >
-            {txLoading ? "Approving…" : <><span>🔑</span> Approve Token Spend</>}
+            {txLoading ? "Approving…" : (
+              <>
+                <span>🔑</span> Approve {r.tokenSymbol ?? "token"} spend
+              </>
+            )}
           </button>
         )}
 
@@ -55,6 +62,7 @@ export function MessageBubble({ message, onConfirm, onCancel, onSign, onApprove,
             type="draft"
             recipients={r.recipients}
             totalAmount={r.totalAmount}
+            tokenSymbol={r.tokenSymbol}
             onConfirm={onConfirm}
             onCancel={onCancel}
           />
@@ -66,6 +74,8 @@ export function MessageBubble({ message, onConfirm, onCancel, onSign, onApprove,
             totalAmount={0}
             tokenSymbol={r.tx.token.symbol}
             note={r.tx.note}
+            agentAddress={r.agent?.address}
+            agentRegistered={r.agent?.erc8004?.registered}
             onSign={() => onSign(r)}
             txLoading={txLoading}
           />

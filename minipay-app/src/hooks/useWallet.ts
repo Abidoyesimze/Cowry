@@ -3,34 +3,62 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import {
   isMiniPay,
   waitForProvider,
-  getConnectedAddress,
-  getCurrentChainId,
   requestAccounts,
   switchToCelo,
   shortAddress,
 } from "@/lib/wallet";
-import { resolveUsername, setCachedUsername } from "@/lib/registry";
+import {
+  getCachedUsername,
+  getUsernameFromChain,
+  isWalletRegistered,
+  setCachedUsername,
+} from "@/lib/registry";
 
 type RegistrationState = "unknown" | "checking" | "unregistered" | "registered";
 
 export function useWallet() {
-  const [address,     setAddress]     = useState<`0x${string}` | null>(null);
-  const [username,    setUsername]    = useState<string | null>(null);
-  const [regState,    setRegState]    = useState<RegistrationState>("unknown");
-  const [inMiniPay,   setInMiniPay]   = useState(false);
-  const [loading,     setLoading]     = useState(true);
-  const [wrongChain,  setWrongChain]  = useState(false);
-  const [walletError, setWalletError] = useState<string | null>(null);
+  const [address,      setAddress]      = useState<`0x${string}` | null>(null);
+  const [username,     setUsername]     = useState<string | null>(null);
+  const [regState,     setRegState]     = useState<RegistrationState>("unknown");
+  const [inMiniPay,    setInMiniPay]    = useState(false);
+  const [isConnecting, setIsConnecting] = useState(true);
+  const [wrongChain,   setWrongChain]   = useState(false);
+  const [walletError,  setWalletError]  = useState<string | null>(null);
 
-  // Prevent duplicate auto-connect attempts (MiniPay docs requirement)
   const hasAttempted = useRef(false);
+
+  /** Fetch @name from chain in background (slow); never blocks the chat gate. */
+  const fetchUsernameInBackground = useCallback((addr: `0x${string}`) => {
+    void getUsernameFromChain(addr).then((name) => {
+      if (name) {
+        setCachedUsername(addr, name);
+        setUsername(name);
+      }
+    });
+  }, []);
 
   const checkRegistration = useCallback(async (addr: `0x${string}`) => {
     setRegState("checking");
-    const { registered, username: name } = await resolveUsername(addr);
-    setRegState(registered ? "registered" : "unregistered");
-    setUsername(name ?? null);
-  }, []);
+
+    const cached = getCachedUsername(addr);
+    if (cached) setUsername(cached);
+
+    try {
+      const registered = await isWalletRegistered(addr);
+      if (!registered) {
+        setUsername(null);
+        setRegState("unregistered");
+        return;
+      }
+
+      setRegState("registered");
+      if (!cached) {
+        fetchUsernameInBackground(addr);
+      }
+    } catch {
+      setRegState("unknown");
+    }
+  }, [fetchUsernameInBackground]);
 
   const ensureCelo = useCallback(async () => {
     try {
@@ -41,63 +69,44 @@ export function useWallet() {
     }
   }, []);
 
-  const connect = useCallback(async () => {
-    const addr = await requestAccounts();
-    setAddress(addr);
-    if (addr) {
-      await ensureCelo();
-      await checkRegistration(addr);
-    }
-    return addr;
-  }, [checkRegistration, ensureCelo]);
-
   useEffect(() => {
     const init = async () => {
-      // Single attempt guard (MiniPay docs requirement)
       if (hasAttempted.current) return;
       hasAttempted.current = true;
 
       try {
-        // Wait for window.ethereum to be injected — MiniPay may inject after load
-        const ready = await waitForProvider(3000);
+        const ready = await waitForProvider(1500);
         if (!ready) {
-          // No wallet found — not inside MiniPay or any Web3 browser
-          setLoading(false);
+          setWalletError("Please open this app inside MiniPay.");
           return;
         }
 
         const miniPay = isMiniPay();
         setInMiniPay(miniPay);
 
-        if (miniPay) {
-          // Inside MiniPay — auto-connect immediately, no prompt shown
-          const addr = await requestAccounts();
-          if (addr) {
-            setAddress(addr);
-            await checkRegistration(addr);
-          }
-        } else {
-          // Regular browser wallet — get already-connected accounts silently
-          const addr = await getConnectedAddress();
-          if (addr) {
-            setAddress(addr);
-            const chainId = await getCurrentChainId();
-            if (chainId !== 42220) {
-              try { await switchToCelo(); } catch { setWrongChain(true); }
-            }
-            await checkRegistration(addr);
-          }
+        if (!miniPay) {
+          setWalletError("Please open this app inside MiniPay.");
+          return;
         }
+
+        const addr = await requestAccounts();
+        if (!addr) {
+          setWalletError("Connection failed. Unlock MiniPay and try again.");
+          return;
+        }
+
+        setAddress(addr);
+        // Unblock UI — registration check runs without holding the splash screen
+        setIsConnecting(false);
+        void checkRegistration(addr);
       } catch (e) {
         setWalletError(e instanceof Error ? e.message : String(e));
-      } finally {
-        setLoading(false);
+        setIsConnecting(false);
       }
     };
 
     init();
 
-    // ── Event listeners ────────────────────────────────────────────────────
     type Provider = {
       on?:             (event: string, fn: (...args: unknown[]) => void) => void;
       removeListener?: (event: string, fn: (...args: unknown[]) => void) => void;
@@ -114,7 +123,7 @@ export function useWallet() {
       const next = (list[0] ?? null) as `0x${string}` | null;
       setAddress(next);
       if (next) {
-        checkRegistration(next);
+        void checkRegistration(next);
       } else {
         setUsername(null);
         setRegState("unknown");
@@ -128,7 +137,7 @@ export function useWallet() {
       provider?.removeListener?.("chainChanged",    handleChainChange);
       provider?.removeListener?.("accountsChanged", handleAccountsChange);
     };
-  }, [connect, checkRegistration]);
+  }, [checkRegistration]);
 
   const onRegistered = useCallback((name: string) => {
     if (!address) return;
@@ -142,14 +151,13 @@ export function useWallet() {
     username,
     shortAddress:  address ? shortAddress(address) : null,
     inMiniPay,
-    loading,
+    isConnecting,
     walletError,
-    connect,
     onRegistered,
     ensureCelo,
     wrongChain,
     isConnected:   !!address,
     isRegistered:  regState === "registered",
-    isChecking:    regState === "checking" || regState === "unknown",
+    isChecking:    regState === "checking",
   };
 }

@@ -1,4 +1,4 @@
-import type { ChatResponse, ChainInfo, BridgeQuoteResult, BridgeStatus } from "./types";
+import type { ChatResponse, BridgeChainsConfig, BridgeQuoteResult, BridgeStatus } from "./types";
 
 function base(): string {
   // In production/staging: set NEXT_PUBLIC_AGENT_URL to the hosted agent URL.
@@ -35,12 +35,14 @@ export function chat(
   return post("/chat", { message, walletAddress, sessionId });
 }
 
-// ── Bridge ────────────────────────────────────────────────────────────────────
+// ── Cross-chain send (LI.FI; Celo → other chain USDC) ───────────────────────
 
-export async function getChains(): Promise<ChainInfo[]> {
-  const { chains } = await get<{ chains: ChainInfo[] }>("/bridge/chains");
-  return chains;
+export async function getBridgeChains(): Promise<BridgeChainsConfig> {
+  return get<BridgeChainsConfig>("/bridge/chains");
 }
+
+/** @deprecated Use getBridgeChains — kept for cached bundles */
+export const getChains = getBridgeChains;
 
 export function getBridgeQuote(params: {
   fromChainId:      number;

@@ -7,6 +7,8 @@ import {
   setCachedUsername,
   getUsernameFromChain,
   isRegisteredOnChain,
+  checkUsernameAvailability,
+  formatRegistrationError,
 } from "@/lib/registry";
 import { getPublicClient, switchToCelo } from "@/lib/wallet";
 
@@ -32,12 +34,25 @@ export function RegisterScreen({ address, onRegistered }: Props) {
     if (err) { setError(err); return; }
 
     setError(null);
+
+    const normalized = name.toLowerCase().trim();
+
+    try {
+      const taken = await checkUsernameAvailability(normalized, address);
+      if (taken) {
+        setError(taken);
+        return;
+      }
+    } catch {
+      // RPC unavailable — still attempt register; errors are mapped below
+    }
+
     setStep("signing");
 
     try {
       // Ensure the wallet is on Celo before signing
       await switchToCelo();
-      const hash = await registerUsername(name.toLowerCase().trim());
+      const hash = await registerUsername(normalized);
       setTxHash(hash);
       setStep("confirming");
 
@@ -54,7 +69,7 @@ export function RegisterScreen({ address, onRegistered }: Props) {
 
       setTimeout(() => onRegistered(name.toLowerCase().trim()), 1200);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Transaction failed");
+      setError(formatRegistrationError(e, normalized));
       setStep("input");
     }
   }

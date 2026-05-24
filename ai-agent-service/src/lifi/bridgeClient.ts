@@ -1,9 +1,8 @@
 /**
- * LI.FI cross-chain bridge client — fully bidirectional.
+ * LI.FI cross-chain send — Celo outbound only (not a generic bridge UI).
  *
- * Supports:
- *   Inbound:  any EVM chain  →  Celo (USDm or USDC)
- *   Outbound: Celo (USDm or USDC)  →  any EVM chain
+ * Supported route:
+ *   Send from Celo (USDC or USDm)  →  receive USDC on another EVM chain
  *
  * Flow:
  *  1. Call getBridgeQuote() — returns calldata the user signs on the source chain.
@@ -31,6 +30,8 @@ export type ChainInfo = {
   usdm?:    string;
   /** Display decimals for USDC on this chain (always 6 for non-Celo) */
   usdcDecimals: number;
+  /** USDm decimals — only on Celo (18) */
+  usdmDecimals?: number;
 };
 
 export const SUPPORTED_CHAINS: Record<number, ChainInfo> = {
@@ -49,8 +50,47 @@ export const SUPPORTED_CHAINS: Record<number, ChainInfo> = {
     usdc: CELO_USDC_ADDRESS,
     usdm: CELO_USDM_ADDRESS,
     usdcDecimals: 6,
+    usdmDecimals: 18,
   },
 };
+
+/** Celo outbound: destination chains (USDC receive only). */
+export function getCeloOutboundDestinations(): ChainInfo[] {
+  return Object.values(SUPPORTED_CHAINS).filter(
+    (c) => c.chainId !== CELO_CHAIN_ID && c.usdc,
+  );
+}
+
+export function getCeloBridgeSource(): ChainInfo {
+  return SUPPORTED_CHAINS[CELO_CHAIN_ID];
+}
+
+/** Enforce Celo (USDC/USDm) → other chain (USDC). */
+export function validateCeloOutboundBridge(params: BridgeQuoteParams): void {
+  const celo = SUPPORTED_CHAINS[CELO_CHAIN_ID];
+  if (params.fromChainId !== CELO_CHAIN_ID) {
+    throw new Error("Cross-chain send must start from Celo.");
+  }
+
+  const from = params.fromTokenAddress.toLowerCase();
+  const allowedFrom = [celo.usdc, celo.usdm].filter(Boolean).map((a) => a!.toLowerCase());
+  if (!allowedFrom.includes(from)) {
+    throw new Error("Source token must be USDC or USDm on Celo.");
+  }
+
+  if (params.toChainId === CELO_CHAIN_ID) {
+    throw new Error("Destination must be a chain other than Celo.");
+  }
+
+  const dest = SUPPORTED_CHAINS[params.toChainId];
+  if (!dest?.usdc) {
+    throw new Error("Destination chain is not supported.");
+  }
+
+  if (params.toTokenAddress.toLowerCase() !== dest.usdc.toLowerCase()) {
+    throw new Error("Destination token must be USDC.");
+  }
+}
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -88,6 +128,8 @@ export type BridgeQuote = {
     toAmount:          string;
     toAmountMin:       string;
     executionDuration: number;
+    /** ERC-20 spender — user must approve this address before the bridge tx */
+    approvalAddress?:  string;
     feeCosts: { name: string; amountUSD: string }[];
     gasCosts: { amountUSD: string }[];
   };
@@ -120,8 +162,18 @@ async function lifiGet<T>(path: string, params: Record<string, string>): Promise
   const res = await fetch(url.toString(), { headers: lifiHeaders() });
   if (!res.ok) {
     let detail = "";
-    try { detail = ((await res.json()) as { message?: string }).message ?? ""; } catch { /* ignore */ }
-    throw new Error(`LI.FI ${path} error ${res.status}: ${detail.slice(0, 300)}`);
+    try {
+      const body = (await res.json()) as { message?: string; code?: number };
+      detail = body.message ?? "";
+      if (res.status === 404 && body.code === 1002) {
+        throw new Error(
+          "No route available for this send. Try a different amount, token (USDC vs USDm), or destination chain.",
+        );
+      }
+    } catch (e) {
+      if (e instanceof Error && e.message.startsWith("No route")) throw e;
+    }
+    throw new Error(detail || `LI.FI ${path} failed (${res.status})`);
   }
   return res.json() as Promise<T>;
 }
@@ -132,11 +184,11 @@ function chainName(id: number): string {
 
 // ── Quote ─────────────────────────────────────────────────────────────────────
 
-/**
- * Get a bridge quote between any two supported chains.
- * Works in both directions — inbound to Celo and outbound from Celo.
- */
+/** Get a bridge quote: Celo USDC/USDm → destination USDC. */
 export async function getBridgeQuote(params: BridgeQuoteParams): Promise<BridgeQuote> {
+  validateCeloOutboundBridge(params);
+  // Do not restrict allowBridges — bridges like Across/Stargate often lack Celo outbound.
+  // LI.FI will pick a working route (e.g. eco) for Celo → other chain USDC/USDm.
   return lifiGet<BridgeQuote>("/quote", {
     fromChain:    String(params.fromChainId),
     toChain:      String(params.toChainId),
@@ -146,7 +198,6 @@ export async function getBridgeQuote(params: BridgeQuoteParams): Promise<BridgeQ
     fromAddress:  params.fromAddress,
     toAddress:    params.toAddress,
     integrator:   INTEGRATOR,
-    allowBridges: "across,stargate,relay,cbridge",
   });
 }
 
@@ -200,9 +251,9 @@ export function formatBridgeSummary(quote: BridgeQuote): string {
   const gasUsd       = quote.estimate.gasCosts.reduce((s, g) => s + Number(g.amountUSD), 0).toFixed(2);
 
   return [
-    `Bridge via ${quote.tool}`,
-    `• Send:     ${sentHuman} ${from.symbol} on ${chainName(quote.action.fromChainId)}`,
-    `• Receive:  ≥${receivedMin} ${to.symbol} on ${chainName(quote.action.toChainId)}`,
+    `Cross-chain send via ${quote.tool}`,
+    `• You send:    ${sentHuman} ${from.symbol} on Celo`,
+    `• Recipient gets: ≥${receivedMin} USDC on ${chainName(quote.action.toChainId)}`,
     `• Fee:      $${feeUsd}  |  Gas: $${gasUsd}`,
     `• Est. time: ~${durationMin} min`,
   ].join("\n");

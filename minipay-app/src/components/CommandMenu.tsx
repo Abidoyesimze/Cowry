@@ -18,10 +18,11 @@ const CATEGORIES: Category[] = [
     icon: "💸",
     title: "Payments",
     commands: [
-      { label: "Send to person",   template: "Send 10 USDm to @",            desc: "Send tokens to a @username" },
-      { label: "Split among people", template: "Split 30 USDm among @alice, @bob", desc: "Divide equally between users" },
-      { label: "Send to group",    template: "Send 20 USDm to everyone in ", desc: "Same amount to every group member" },
-      { label: "Split across group", template: "Split 100 USDm across group ", desc: "Divide total across group members" },
+      { label: "Send USDC",        template: "Send 10 USDC to @",            desc: "Pay with Circle USDC on Celo" },
+      { label: "Send USDm",        template: "Send 10 USDm to @",            desc: "Pay with Mento USDm on Celo" },
+      { label: "Split among people", template: "Split 30 USDC among @alice, @bob", desc: "Divide equally (USDC or USDm)" },
+      { label: "Send to group",    template: "Send 20 USDC to everyone in ", desc: "Same amount per member" },
+      { label: "Split across group", template: "Split 100 USDC across group ", desc: "Divide total across group" },
     ],
   },
   {
@@ -46,10 +47,10 @@ const CATEGORIES: Category[] = [
     ],
   },
   {
-    icon: "🌉",
-    title: "Cross-chain Bridge",
+    icon: "↗️",
+    title: "Cross-chain send",
     commands: [
-      { label: "Bridge from another chain", template: "",                             desc: "Tap the 🌉 Bridge button in the header" },
+      { label: "Send to another chain", template: "",                                  desc: "Celo USDC/USDm → USDC on Ethereum, Base, Arbitrum, etc." },
     ],
   },
   {

@@ -1,8 +1,16 @@
 import { NextResponse } from "next/server";
-import { SUPPORTED_CHAINS } from "@agent/lifi/bridgeClient.js";
+import { loadAgentEnv } from "@/lib/loadAgentEnv";
+import {
+  getCeloBridgeSource,
+  getCeloOutboundDestinations,
+} from "@agent/lifi/bridgeClient.js";
 
 export const runtime = "nodejs";
 
+loadAgentEnv();
+
 export function GET() {
-  return NextResponse.json({ chains: Object.values(SUPPORTED_CHAINS) });
+  const source = getCeloBridgeSource();
+  const destinations = getCeloOutboundDestinations();
+  return NextResponse.json({ source, destinations });
 }

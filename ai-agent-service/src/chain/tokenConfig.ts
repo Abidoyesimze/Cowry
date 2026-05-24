@@ -15,7 +15,7 @@ export const TOKENS = {
 export type TokenSymbol = keyof typeof TOKENS;
 
 /** Default token for payments when the user doesn't specify */
-export const DEFAULT_TOKEN = TOKENS.USDm;
+export const DEFAULT_TOKEN = TOKENS.USDC;
 
 export function getTokenByAddress(addr: string) {
   const lower = addr.toLowerCase();

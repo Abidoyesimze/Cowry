@@ -11,6 +11,8 @@ type DraftProps = {
 type ReadyProps = {
   type: "tx_ready"; recipients: Recipient[]; totalAmount: number;
   tokenSymbol: string; note: string;
+  agentAddress?: string;
+  agentRegistered?: boolean;
   onSign: () => void; txLoading: boolean;
 };
 
@@ -58,6 +60,22 @@ export function TransactionCard(props: Props) {
       {/* Note */}
       {props.type === "tx_ready" && props.note && (
         <p className="mx-4 mb-3 text-xs text-cowry-muted leading-relaxed">{props.note}</p>
+      )}
+      {props.type === "tx_ready" && props.agentAddress && (
+        <p className="mx-4 mb-3 text-[10px] text-cowry-muted leading-relaxed">
+          Cowry agent{" "}
+          <a
+            href={`https://celoscan.io/address/${props.agentAddress}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-cowry-blue hover:text-cowry-mint font-mono"
+          >
+            {props.agentAddress.slice(0, 6)}…{props.agentAddress.slice(-4)}
+          </a>
+          {props.agentRegistered
+            ? " · ERC-8004 registered"
+            : " · AI identity (you still sign & pay)"}
+        </p>
       )}
 
       {/* Actions */}

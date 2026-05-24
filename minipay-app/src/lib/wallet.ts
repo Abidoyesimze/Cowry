@@ -180,3 +180,26 @@ export function shortAddress(addr: string): string {
   if (addr.length < 12) return addr;
   return `${addr.slice(0, 6)}…${addr.slice(-4)}`;
 }
+
+/** Poll the wallet RPC until a transaction is confirmed. */
+export async function waitForTransaction(
+  hash: `0x${string}`,
+  timeoutMs = 120_000,
+): Promise<void> {
+  const provider = requireProvider();
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const receipt = await provider.request({
+      method: "eth_getTransactionReceipt",
+      params: [hash],
+    }) as { status?: string } | null;
+    if (receipt) {
+      if (receipt.status === "0x0") {
+        throw new Error("Transaction reverted on-chain");
+      }
+      return;
+    }
+    await new Promise((r) => setTimeout(r, 2_000));
+  }
+  throw new Error("Transaction confirmation timed out — try again in a moment");
+}

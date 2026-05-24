@@ -1,19 +1,46 @@
 import path from "path";
 import { fileURLToPath } from "url";
+import { existsSync, readFileSync } from "fs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const agentSrc = path.resolve(__dirname, "../ai-agent-service/src");
+
+// Bridge/chat API routes import @agent code in the Next.js process — not the agent server on :3001.
+// Pull shared secrets (LIFI_API_KEY, GROQ_API_KEY, etc.) from ai-agent-service/.env when missing locally.
+const agentEnvPath = path.resolve(__dirname, "../ai-agent-service/.env");
+if (existsSync(agentEnvPath)) {
+  for (const line of readFileSync(agentEnvPath, "utf8").split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const eq = trimmed.indexOf("=");
+    if (eq === -1) continue;
+    const key = trimmed.slice(0, eq).trim();
+    let value = trimmed.slice(eq + 1).trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    if (process.env[key] === undefined) process.env[key] = value;
+  }
+}
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: false,
   transpilePackages: ["viem", "openai"],
 
-  webpack(config) {
-    config.resolve.extensionAlias = {
-      ".js":  [".ts", ".tsx", ".js"],
-      ".mjs": [".mts", ".mjs"],
-    };
+  webpack(config, { isServer }) {
+    // Only on the server: map @agent/*.js imports to TypeScript sources.
+    // Applying extensionAlias on the client breaks viem's internal .js modules
+    // (webpack_require.n is not a function in ChatInterface → wallet → viem).
+    if (isServer) {
+      config.resolve.extensionAlias = {
+        ".js":  [".ts", ".tsx", ".js"],
+        ".mjs": [".mts", ".mjs"],
+      };
+    }
     config.resolve.alias = {
       ...config.resolve.alias,
       "@agent": agentSrc,

@@ -71,7 +71,7 @@ export function useChat(walletAddress: string | null) {
           .join("\n");
         addMessage({
           role: "bot",
-          text: `✅ Payment sent in ${tokenSymbol}!\n\n${links}`,
+          text: `✅ Payment sent in ${tokenSymbol} from your wallet.\n\n${links}`,
         });
       } catch (e) {
         addMessage({

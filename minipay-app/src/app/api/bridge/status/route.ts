@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { loadAgentEnv } from "@/lib/loadAgentEnv";
 import { getBridgeStatus } from "@agent/lifi/bridgeClient.js";
+
+loadAgentEnv();
 
 export const runtime = "nodejs";
 

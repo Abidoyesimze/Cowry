@@ -5,22 +5,22 @@ import Link  from "next/link";
 import { useWallet }     from "@/hooks/useWallet";
 import { useChat }       from "@/hooks/useChat";
 import { MessageBubble } from "./MessageBubble";
-import { BridgePanel }   from "./BridgePanel";
+import { CrossChainSendPanel } from "./CrossChainSendPanel";
 import { RegisterScreen } from "./RegisterScreen";
 import { CommandMenu }   from "./CommandMenu";
 import type { Message }  from "@/lib/types";
 
 const SUGGESTIONS = [
-  "Send 5 USDm to @alice",
-  "Split $10 among @bob, @carol",
-  "Create group Friends with @bob, @carol",
+  "Send 5 USDC to @alice",
+  "Send 2 USDm to @bob",
+  "Split 10 USDC among @bob, @carol",
   "My balance",
 ];
 
 export function ChatInterface() {
   const {
-    address, username, shortAddress, inMiniPay,
-    loading: walletLoading, walletError, connect, onRegistered,
+    address, username, shortAddress,
+    isConnecting, walletError, onRegistered,
     ensureCelo, wrongChain, isConnected, isRegistered, isChecking,
   } = useWallet();
 
@@ -28,7 +28,7 @@ export function ChatInterface() {
     useChat(address ?? null);
 
   const [input,       setInput]       = useState("");
-  const [showBridge,  setShowBridge]  = useState(false);
+  const [showCrossChainSend, setShowCrossChainSend] = useState(false);
   const [showCommands, setShowCommands] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -46,68 +46,61 @@ export function ChatInterface() {
     signAndSend(r.tx.transactions, r.tx.token.symbol);
   };
 
-  // ── Loading ───────────────────────────────────────────────────────────────
-  if (walletLoading || isChecking) {
+  // Not in MiniPay or auto-connect failed
+  if (!isConnecting && !isConnected) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-cowry-dark">
-        <div className="text-center space-y-4">
-          <div className="relative mx-auto w-16 h-16">
-            <div className="absolute inset-0 rounded-2xl blur-xl bg-cowry-blue/30" />
-            <Image src="/cowry.png" alt="Cowry" width={64} height={64} className="relative rounded-2xl" />
-          </div>
-          <p className="text-sm text-cowry-muted animate-pulse">
-            {walletLoading ? "Connecting wallet…" : "Checking registration…"}
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  // ── Not connected ─────────────────────────────────────────────────────────
-  if (!isConnected) {
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center gap-8 px-6 bg-cowry-dark text-white">
+      <div className="flex-1 flex flex-col items-center justify-center gap-6 px-6 bg-cowry-dark text-white">
         <div className="text-center space-y-3">
           <div className="relative mx-auto w-24 h-24 animate-float">
             <div className="absolute inset-0 rounded-2xl blur-2xl bg-cowry-blue/20 scale-125" />
             <Image src="/cowry.png" alt="Cowry" width={96} height={96} className="relative rounded-2xl shadow-2xl" />
           </div>
           <h1 className="text-2xl font-black mt-2">Cowry</h1>
-          <p className="text-sm text-cowry-muted">Talk. Send. Automate.</p>
+          <p className="text-sm text-cowry-muted max-w-xs">
+            {walletError ?? "Please open this app inside MiniPay."}
+          </p>
         </div>
-        {!inMiniPay && (
-          <button
-            onClick={connect}
-            className="w-full max-w-xs bg-cowry-blue text-cowry-darker font-bold py-3.5 rounded-full text-sm hover:bg-cowry-mint transition-colors animate-glow"
-          >
-            Connect Wallet
-          </button>
-        )}
-        {inMiniPay && (
-          <p className="text-xs text-cowry-muted animate-pulse">Connecting to MiniPay…</p>
-        )}
-        {walletError && (
-          <p className="text-xs text-red-400 text-center max-w-xs">{walletError}</p>
-        )}
         <Link href="/" className="text-xs text-cowry-muted hover:text-white transition-colors underline underline-offset-2">
-          ← Back to homepage
+          Back to homepage
         </Link>
       </div>
     );
   }
 
-  // ── Registration gate ─────────────────────────────────────────────────────
-  if (!isRegistered) {
+  // Wallet provider / account — full splash only until we have an address
+  if (isConnecting) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center gap-3 bg-cowry-dark">
+        <div className="relative w-16 h-16">
+          <div className="absolute inset-0 rounded-2xl blur-xl bg-cowry-blue/30 animate-pulse" />
+          <Image src="/cowry.png" alt="Cowry" width={64} height={64} className="relative rounded-2xl" priority />
+        </div>
+        <p className="text-xs text-cowry-muted">Connecting wallet…</p>
+      </div>
+    );
+  }
+
+  // One quick on-chain read — show shell instead of a blank full-screen wait
+  if (isChecking) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center gap-3 bg-cowry-dark">
+        <div className="w-8 h-8 rounded-full border-2 border-cowry-blue border-t-transparent animate-spin" />
+        <p className="text-xs text-cowry-muted">Checking your Cowry name…</p>
+      </div>
+    );
+  }
+
+  // Registration gate — unregistered wallets never see chat first
+  if (isConnected && !isRegistered) {
     return <RegisterScreen address={address!} onRegistered={onRegistered} />;
   }
 
-  // ── Main chat ─────────────────────────────────────────────────────────────
+  // Main chat — only for registered users
   return (
-    <div className="flex-1 flex flex-col overflow-hidden bg-cowry-dark">
+    <div className="relative flex-1 flex flex-col overflow-hidden bg-cowry-dark">
 
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 bg-cowry-dark border-b border-cowry-border flex-shrink-0">
-        {/* Left — home */}
         <Link
           href="/"
           className="flex items-center justify-center w-9 h-9 rounded-full bg-cowry-card border border-cowry-border hover:border-cowry-blue/40 transition-colors"
@@ -118,7 +111,6 @@ export function ChatInterface() {
           </svg>
         </Link>
 
-        {/* Centre — logo + identity */}
         <div className="flex items-center gap-2.5">
           <div className="relative w-8 h-8">
             <div className="absolute inset-0 rounded-lg blur-md bg-cowry-blue/20" />
@@ -127,32 +119,30 @@ export function ChatInterface() {
           <div className="leading-tight">
             <p className="text-sm font-bold text-white">Cowry</p>
             <p className="text-[10px] text-cowry-blue font-medium">
-              {username ? `@${username}` : shortAddress}
+              {username ? `@${username}` : shortAddress ?? "MiniPay"}
             </p>
           </div>
         </div>
 
-        {/* Right — cross-chain */}
         <button
-          onClick={() => setShowBridge(true)}
+          onClick={() => setShowCrossChainSend(true)}
           className="flex items-center gap-1.5 text-xs bg-cowry-card border border-cowry-border hover:border-cowry-blue/40 text-cowry-muted hover:text-white px-3 py-2 rounded-full font-medium transition-all"
+          title="Send USDC from Celo to another chain"
         >
-          <span>🌉</span>
-          <span className="hidden sm:inline">Bridge</span>
+          <span>↗️</span>
+          <span className="hidden sm:inline">Send</span>
         </button>
       </div>
 
-      {/* Wrong-chain banner */}
       {wrongChain && (
         <div className="flex items-center justify-between gap-2 px-4 py-2.5 bg-amber-500/10 border-b border-amber-500/20 flex-shrink-0">
-          <p className="text-xs text-amber-400">⚠️ Switch to Celo to send payments</p>
+          <p className="text-xs text-amber-400">Switch to Celo to send payments</p>
           <button onClick={ensureCelo} className="text-xs font-semibold text-amber-300 hover:text-amber-100 transition-colors">
-            Switch →
+            Switch
           </button>
         </div>
       )}
 
-      {/* Messages */}
       <div className="flex-1 overflow-y-auto px-3 py-4 space-y-2 bg-cowry-darker">
         {messages.length === 0 && (
           <div className="flex flex-col items-center gap-5 pt-8">
@@ -182,7 +172,7 @@ export function ChatInterface() {
             onConfirm={confirm}
             onCancel={cancel}
             onSign={(r) => handleSign(r as Extract<Message["response"], { type: "tx_ready" }>)}
-            onApprove={(txs) => signAndSend(txs, "USDm")}
+            onApprove={(txs, symbol) => signAndSend(txs, symbol ?? "USDC")}
             txLoading={txLoading}
           />
         ))}
@@ -206,9 +196,7 @@ export function ChatInterface() {
         <div ref={bottomRef} />
       </div>
 
-      {/* Input bar */}
       <div className="bg-cowry-dark border-t border-cowry-border px-3 py-3 flex items-center gap-2 flex-shrink-0">
-        {/* Commands button */}
         <button
           onClick={() => setShowCommands(true)}
           className="w-10 h-10 bg-cowry-card border border-cowry-border rounded-full flex items-center justify-center flex-shrink-0 hover:border-cowry-blue/40 hover:text-cowry-blue text-cowry-muted transition-all"
@@ -239,16 +227,14 @@ export function ChatInterface() {
         </button>
       </div>
 
-      {/* Bridge panel */}
-      {showBridge && address && (
-        <BridgePanel
+      {showCrossChainSend && address && (
+        <CrossChainSendPanel
           walletAddress={address}
-          onClose={() => setShowBridge(false)}
-          onSuccess={(msg) => { setShowBridge(false); addBotMessage(msg); }}
+          onClose={() => setShowCrossChainSend(false)}
+          onSuccess={(msg) => { setShowCrossChainSend(false); addBotMessage(msg); }}
         />
       )}
 
-      {/* Command menu */}
       {showCommands && (
         <CommandMenu
           onSelect={(template) => {

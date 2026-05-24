@@ -25,6 +25,9 @@ import {
   toBaseUnits,
   fromBaseUnits,
 } from "./chain/tokenConfig.js";
+import { resolvePaymentToken } from "./chain/paymentToken.js";
+import type { PaymentTokenInfo } from "./chain/paymentToken.js";
+import { getAgentIdentity } from "./agent/identity.js";
 import {
   clearDraft,
   getPendingDraft,
@@ -97,6 +100,31 @@ function splitEqualShares(
   });
 }
 
+async function pickPaymentToken(
+  intent: ParsedIntent & { kind: "payment" },
+  deps: ResolutionDeps,
+  wallet: `0x${string}` | undefined,
+  amountHuman: number,
+): Promise<
+  | { ok: true; tokenInfo: PaymentTokenInfo; tokenAddress: `0x${string}`; tokenSymbol: string }
+  | { ok: false; question: string }
+> {
+  const r = await resolvePaymentToken({
+    explicitSymbol: intent.token,
+    wallet,
+    client: deps.publicClient,
+    amountHuman,
+  });
+  if (r.clarify) return { ok: false, question: r.clarify };
+  const tokenInfo = r.token!;
+  return {
+    ok: true,
+    tokenInfo,
+    tokenAddress: tokenInfo.address,
+    tokenSymbol: tokenInfo.symbol,
+  };
+}
+
 function buildPreviewLines(
   recipients: { username: string; amount: number }[],
   tokenSymbol: string,
@@ -119,7 +147,7 @@ function policyCheck(
   for (const r of recipients) {
     if (r.amount <= 0) return "Amounts must be positive";
     if (r.amount > maxPerTransfer) {
-      return `Amount exceeds maximum (${maxPerTransfer.toLocaleString()} USDC per recipient)`;
+      return `Amount exceeds maximum (${maxPerTransfer.toLocaleString()} per recipient)`;
     }
   }
   return null;
@@ -133,14 +161,14 @@ async function buildWelcomeMessage(
   if (deps.mode === "chain" && wallet && !(await deps.isWalletRegistered(wallet))) {
     lines.push(
       "",
-      "**Your wallet does not have a Cowry name yet** — register before sending USDC.",
+      "**Your wallet does not have a Cowry name yet** — register before sending.",
     );
   }
   lines.push(
     "",
     "1. Always send **walletAddress** in the API body (the wallet that will sign).",
     "2. **Register**: **register as yourname** (3–32 chars, a–z and 0–9) — links your @name to your wallet on-chain.",
-    "3. **Pay & groups**: **approve N usdc for cowry** first (or we’ll suggest approve if allowance is low). Then **send $20 to @alice** or **I want to send $100 to group Friends**; **list my groups**; **create group …**.",
+    "3. **Pay with USDC or USDm**: e.g. **send 20 USDC to @alice**, **send 5 USDm to @bob**, or **approve 500 USDC for cowry**.",
     "Say **help** for more.",
   );
   return lines.join("\n");
@@ -184,6 +212,7 @@ async function maybeTokenReadinessBlock(
     type: "clarify",
     question: `CowryPay needs permission to pull **${req} ${sym}**; your ${sym} allowance for CowryPay is only **${alw} ${sym}**. Sign **approve** below, then send the same payment again and **confirm**.`,
     transactions: [approveTx],
+    tokenSymbol: sym,
   };
 }
 
@@ -223,17 +252,16 @@ export async function paymentFromIntent(
     return { ok: false, question: "Not a payment command." };
   }
 
-  // Resolve token: use what the user said ("USDm" / "USDC") or default to USDm
-  const tokenInfo = intent.token ? getTokenBySymbol(intent.token) : DEFAULT_TOKEN;
-  const tokenAddress = tokenInfo.address;
-  const tokenSymbol  = tokenInfo.symbol;
-
   if (intent.action === "SEND_SINGLE") {
     const amount = intent.amount;
     const handle = intent.recipient;
     if (amount == null || !handle) {
       return { ok: false, question: "I need an amount and a recipient like @tolu." };
     }
+    const picked = await pickPaymentToken(intent, deps, wallet, amount);
+    if (!picked.ok) return picked;
+    const { tokenInfo, tokenAddress, tokenSymbol } = picked;
+
     const r = await deps.resolveUsername(handle);
     if (!r.ok) {
       return {
@@ -300,6 +328,11 @@ export async function paymentFromIntent(
     if (!g.ok) {
       return { ok: false, question: g.reason };
     }
+    const totalForToken = per * g.members.length;
+    const picked = await pickPaymentToken(intent, deps, wallet, totalForToken);
+    if (!picked.ok) return picked;
+    const { tokenInfo, tokenAddress, tokenSymbol } = picked;
+
     const perBase = toBaseUnits(per, tokenInfo.decimals);
 
     if (g.kind === "onchain") {
@@ -366,7 +399,7 @@ export async function paymentFromIntent(
       return {
         ok: false,
         question:
-          "I need a **total** USDC amount and a group, e.g. **split $100 across group Friends** or **split 50 usd in Friends group**.",
+          "I need a **total** amount and a group, e.g. **split 100 USDC across group Friends** or **split 50 USDm in Friends group**.",
       };
     }
     const groupLabel = gname
@@ -393,6 +426,10 @@ export async function paymentFromIntent(
     if (!g.ok) {
       return { ok: false, question: g.reason };
     }
+    const picked = await pickPaymentToken(intent, deps, wallet, total);
+    if (!picked.ok) return picked;
+    const { tokenInfo, tokenAddress, tokenSymbol } = picked;
+
     const totalBase = toBaseUnits(total, tokenInfo.decimals);
     const n = g.members.length;
     const shares = splitEqualShares(total, n, tokenInfo.decimals);
@@ -481,6 +518,10 @@ export async function paymentFromIntent(
       }
       resolved.push({ username: r.username, address: r.address });
     }
+    const picked = await pickPaymentToken(intent, deps, wallet, total);
+    if (!picked.ok) return picked;
+    const { tokenInfo, tokenAddress, tokenSymbol } = picked;
+
     const shares = splitEqualShares(total, resolved.length, tokenInfo.decimals);
     const recipients = resolved.map((r, i) => ({
       username: r.username,
@@ -682,13 +723,13 @@ export async function adminFromIntent(
     return {
       kind: "info",
       message: [
-        "Cowry — USDm & USDC payments via CowryPay on Celo:",
+        "Cowry — **USDC** & **USDm** payments via CowryPay on Celo:",
         "• **register as yourname** — links @name to your wallet (sign UsernameRegistry.register)",
-        "• **approve 500 usdc for cowry** — USDC.approve so CowryPay can pull funds",
-        "• send $20 to @alice — or send 20.5 usd to @alice",
-        "• I want to send $100 to group Friends — or send 10 to everyone in Friends",
-        "• split $30 among @alice, @bob, @carol",
-        "• **split $100 across group Friends** — total split (**payGroupSplit**)",
+        "• **approve 500 USDC for cowry** or **approve 500 USDm for cowry**",
+        "• **send 20 USDC to @alice** or **send 5 USDm to @bob**",
+        "• **send 10 USDC to everyone in Friends** — same amount per group member",
+        "• **split 30 USDC among @alice, @bob, @carol**",
+        "• **split 100 USDm across group Friends** — total split (**payGroupSplit**)",
         "• **add @mack to group 3** / **remove @mack from group 3** / **cancel group 3** (chain only; owner-only)",
         "• create group Team with @alice, @bob",
         "• list my groups",
@@ -1028,6 +1069,7 @@ export async function handleUserMessage(
     const meta = await deps.getMeta();
     const tokenInfo = getTokenByAddress(pending.txPlan.token);
     const transactions = encodeTxPlan(pending.txPlan);
+    const agent = await getAgentIdentity(deps.publicClient);
     return {
       type: "tx_ready",
       draftId: pending.draftId,
@@ -1036,9 +1078,12 @@ export async function handleUserMessage(
         chainId: meta.chainId,
         token: { address: tokenInfo.address, symbol: tokenInfo.symbol, decimals: tokenInfo.decimals },
         cowryPay: meta.cowryPay,
-        note: "Token balance and allowance were checked. Sign below with the same wallet as walletAddress.",
+        note:
+          "You sign with your MiniPay wallet (your address pays). Cowry AI builds the transaction; " +
+          "funds move from you via CowryPay, not from the agent wallet.",
         transactions,
       },
+      ...(agent ? { agent } : {}),
     };
   }
 
@@ -1099,7 +1144,7 @@ export async function handleUserMessage(
         return {
           type: "clarify",
           question:
-            "Include **walletAddress** in the JSON body. We use it to confirm your wallet is registered with a Cowry name before sending USDC, and to find your groups.",
+            "Include **walletAddress** in the JSON body. We use it to confirm your wallet is registered with a Cowry name before sending, and to find your groups.",
         };
       }
       if (!(await deps.isWalletRegistered(walletAddress))) {
@@ -1134,6 +1179,8 @@ export async function handleUserMessage(
   saveDraft(draft);
   setPendingDraft(sessionId, draftId);
 
+  const draftToken = getTokenByAddress(p.draft.txPlan.token);
+
   return {
     type: "draft",
     draftId,
@@ -1141,5 +1188,6 @@ export async function handleUserMessage(
     action: draft.action,
     recipients: draft.recipients,
     totalAmount: draft.totalAmount,
+    tokenSymbol: draftToken.symbol,
   };
 }

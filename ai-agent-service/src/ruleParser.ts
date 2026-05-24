@@ -15,11 +15,27 @@ const STOP = new Set([
   "the",
   "my",
   "usd",
-  "usdc",
   "dollar",
   "dollars",
   "and",
 ]);
+
+function paymentToken(raw: string | undefined): "USDC" | "USDm" | undefined {
+  if (!raw) return undefined;
+  const t = raw.toLowerCase();
+  if (t === "usdc") return "USDC";
+  if (t === "usdm") return "USDm";
+  if (t === "usd" || t.startsWith("dollar")) return "USDC";
+  return undefined;
+}
+
+function withPaymentToken<T extends ParsedIntent>(intent: T, tokenRaw: string | undefined): T {
+  const token = paymentToken(tokenRaw);
+  return token ? ({ ...intent, token } as T) : intent;
+}
+
+/** Captures optional token after amount: "1 USDC", "20 usdm", "$5", etc. */
+const AMT_TOKEN = String.raw`([\d,]+(?:\.\d+)?)\s*\$?\s*(usdc|usdm|usd|dollars?)?`;
 
 function extractUsernames(segment: string): string[] {
   const out: string[] = [];
@@ -110,22 +126,31 @@ export function ruleParse(message: string): ParsedIntent | null {
   }
 
   const approveFor = raw.match(
-    /^approve\s+\$?\s*([\d,]+(?:\.\d+)?)\s*(?:usd|usdc|dollars?)?\s+for\s+cowry(?:pay)?\s*\.?$/i,
+    new RegExp(`^approve\\s+\\$?\\s*${AMT_TOKEN}\\s+for\\s+cowry(?:pay)?\\s*\\.?$`, "i"),
   );
   if (approveFor) {
     const amount = parseMoneyAmount(approveFor[1]!);
     if (amount != null) {
-      return { kind: "admin", action: "APPROVE_USDC", amount };
+      return withPaymentToken(
+        { kind: "admin", action: "APPROVE_USDC", amount },
+        approveFor[2],
+      );
     }
   }
 
   const approveSpend = raw.match(
-    /^(?:approve|allow)\s+cowry(?:pay)?\s+to\s+spend\s+\$?\s*([\d,]+(?:\.\d+)?)\s*(?:usd|usdc|dollars?)?\s*\.?$/i,
+    new RegExp(
+      `^(?:approve|allow)\\s+cowry(?:pay)?\\s+to\\s+spend\\s+\\$?\\s*${AMT_TOKEN}\\s*\\.?$`,
+      "i",
+    ),
   );
   if (approveSpend) {
     const amount = parseMoneyAmount(approveSpend[1]!);
     if (amount != null) {
-      return { kind: "admin", action: "APPROVE_USDC", amount };
+      return withPaymentToken(
+        { kind: "admin", action: "APPROVE_USDC", amount },
+        approveSpend[2],
+      );
     }
   }
 
@@ -141,19 +166,22 @@ export function ruleParse(message: string): ParsedIntent | null {
   }
 
   const splitGroupTotal = raw.match(
-    /(?:split|divide)\s+\$?\s*([\d,]+(?:\.\d+)?)\s*\$?\s*(?:usd|usdc|dollars?)?\s+(?:across|in|into)\s+(?:the\s+)?(?:group\s+)?(.+?)\s*$/i,
+    new RegExp(`(?:split|divide)\\s+\\$?\\s*${AMT_TOKEN}\\s+(?:across|in|into)\\s+(?:the\\s+)?(?:group\\s+)?(.+?)\\s*$`, "i"),
   );
   if (splitGroupTotal) {
     const amount = parseMoneyAmount(splitGroupTotal[1]!);
-    let gname = splitGroupTotal[2]!.trim();
+    let gname = splitGroupTotal[3]!.trim();
     gname = gname.replace(/\s+group\s*$/i, "").replace(/^\s*group\s+/i, "").trim();
     if (amount != null && gname.length > 0) {
-      return {
-        kind: "payment",
-        action: "GROUP_SPLIT_TOTAL",
-        amount,
-        groupName: gname,
-      };
+      return withPaymentToken(
+        {
+          kind: "payment",
+          action: "GROUP_SPLIT_TOTAL",
+          amount,
+          groupName: gname,
+        },
+        splitGroupTotal[2],
+      );
     }
   }
 
@@ -202,93 +230,117 @@ export function ruleParse(message: string): ParsedIntent | null {
   }
 
   const casualGroup = raw.match(
-    /(?:i\s+want\s+to\s+)?send\s+\$?\s*([\d,]+(?:\.\d+)?)\s*\$?\s*(?:usd|usdc|dollars?)?\s+to\s+(?:a\s+)?group\s+(.+)/i,
+    new RegExp(
+      `(?:i\\s+want\\s+to\\s+)?send\\s+\\$?\\s*${AMT_TOKEN}\\s+to\\s+(?:a\\s+)?group\\s+(.+)`,
+      "i",
+    ),
   );
   if (casualGroup) {
     const amount = parseMoneyAmount(casualGroup[1]!);
-    const groupName = casualGroup[2]!.replace(/\bgroup\b/gi, "").trim();
+    const groupName = casualGroup[3]!.replace(/\bgroup\b/gi, "").trim();
     if (amount != null) {
-      return {
-        kind: "payment",
-        action: "SEND_TO_GROUP",
-        perRecipientAmount: amount,
-        groupName: groupName.length > 0 ? groupName : "group",
-      };
+      return withPaymentToken(
+        {
+          kind: "payment",
+          action: "SEND_TO_GROUP",
+          perRecipientAmount: amount,
+          groupName: groupName.length > 0 ? groupName : "group",
+        },
+        casualGroup[2],
+      );
     }
   }
 
   const casualGroupNamed = raw.match(
-    /(?:i\s+want\s+to\s+)?send\s+\$?\s*([\d,]+(?:\.\d+)?)\s*\$?\s*(?:usd|usdc|dollars?)?\s+to\s+(?:the\s+)?(.+?)\s+group\b/i,
+    new RegExp(
+      `(?:i\\s+want\\s+to\\s+)?send\\s+\\$?\\s*${AMT_TOKEN}\\s+to\\s+(?:the\\s+)?(.+?)\\s+group\\b`,
+      "i",
+    ),
   );
   if (casualGroupNamed) {
     const amount = parseMoneyAmount(casualGroupNamed[1]!);
-    const groupName = casualGroupNamed[2]!.trim();
+    const groupName = casualGroupNamed[3]!.trim();
     if (amount != null && groupName.length > 0) {
-      return {
-        kind: "payment",
-        action: "SEND_TO_GROUP",
-        perRecipientAmount: amount,
-        groupName,
-      };
+      return withPaymentToken(
+        {
+          kind: "payment",
+          action: "SEND_TO_GROUP",
+          perRecipientAmount: amount,
+          groupName,
+        },
+        casualGroupNamed[2],
+      );
     }
   }
 
   const sendGroup = lower.match(
-    /send\s+\$?\s*([\d,]+(?:\.\d+)?)\s*\$?\s*(?:usd|usdc|dollars?)?\s+to\s+everyone\s+in\s+(.+)/,
+    new RegExp(`send\\s+\\$?\\s*${AMT_TOKEN}\\s+to\\s+everyone\\s+in\\s+(.+)`),
   );
   if (sendGroup) {
     const amount = parseMoneyAmount(sendGroup[1]!);
     if (amount != null) {
-      const groupName = sendGroup[2]!.replace(/\bgroup\b/gi, "").trim();
-      return {
-        kind: "payment",
-        action: "SEND_TO_GROUP",
-        perRecipientAmount: amount,
-        groupName,
-      };
+      const groupName = sendGroup[3]!.replace(/\bgroup\b/gi, "").trim();
+      return withPaymentToken(
+        {
+          kind: "payment",
+          action: "SEND_TO_GROUP",
+          perRecipientAmount: amount,
+          groupName,
+        },
+        sendGroup[2],
+      );
     }
   }
 
   const sendSingle = lower.match(
-    /send\s+\$?\s*([\d,]+(?:\.\d+)?)\s*\$?\s*(?:usd|usdc|dollars?)?\s+to\s+@?(\w+)/,
+    new RegExp(`send\\s+\\$?\\s*${AMT_TOKEN}\\s+to\\s+@?(\\w+)`),
   );
   if (sendSingle) {
     const amount = parseMoneyAmount(sendSingle[1]!);
     if (amount != null) {
-      return {
-        kind: "payment",
-        action: "SEND_SINGLE",
-        amount,
-        recipient: sendSingle[2]!,
-      };
+      return withPaymentToken(
+        {
+          kind: "payment",
+          action: "SEND_SINGLE",
+          amount,
+          recipient: sendSingle[3]!,
+        },
+        sendSingle[2],
+      );
     }
   }
 
   const splitAmong = lower.match(
-    /split\s+\$?\s*([\d,]+(?:\.\d+)?)\s*\$?\s*(?:usd|usdc|dollars?)?\s+among\s+(.+)/i,
+    new RegExp(`split\\s+\\$?\\s*${AMT_TOKEN}\\s+among\\s+(.+)`, "i"),
   );
   if (splitAmong) {
     const total = parseMoneyAmount(splitAmong[1]!);
-    const rest = splitAmong[2]!;
+    const rest = splitAmong[3]!;
     const users = extractUsernames(rest);
     const mPeople = rest.match(/(\d+)\s+people/);
     if (total != null && users.length >= 2) {
-      return {
-        kind: "payment",
-        action: "SPLIT_EQUAL",
-        amount: total,
-        splitCount: users.length,
-        members: users,
-      };
+      return withPaymentToken(
+        {
+          kind: "payment",
+          action: "SPLIT_EQUAL",
+          amount: total,
+          splitCount: users.length,
+          members: users,
+        },
+        splitAmong[2],
+      );
     }
     if (total != null && mPeople) {
       const n = Number(mPeople[1]);
-      return {
-        kind: "payment",
-        action: "SPLIT_EQUAL",
-        amount: total,
-        splitCount: n,
-      };
+      return withPaymentToken(
+        {
+          kind: "payment",
+          action: "SPLIT_EQUAL",
+          amount: total,
+          splitCount: n,
+        },
+        splitAmong[2],
+      );
     }
   }
 
