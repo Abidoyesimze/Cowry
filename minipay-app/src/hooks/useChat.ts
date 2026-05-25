@@ -1,7 +1,7 @@
 "use client";
 import { useState, useCallback, useRef } from "react";
 import { chat } from "@/lib/agent";
-import { sendTransaction } from "@/lib/wallet";
+import { sendTransaction, waitForTransaction } from "@/lib/wallet";
 import type { Message, ChatResponse, EncodedTxJson } from "@/lib/types";
 
 let _sessionId: string | null = null;
@@ -23,6 +23,16 @@ export function useChat(walletAddress: string | null) {
     return full;
   }, []);
 
+  const appendBotResponse = useCallback((response: ChatResponse) => {
+    const botText = responseToText(response);
+    addMessage({ role: "bot", text: botText, response });
+  }, [addMessage]);
+
+  const fetchAgentResponse = useCallback(async (text: string) => {
+    if (!walletAddress) throw new Error("Wallet not connected");
+    return chat(text, walletAddress, getSessionId());
+  }, [walletAddress]);
+
   const send = useCallback(
     async (text: string) => {
       if (!walletAddress || loading) return;
@@ -31,9 +41,8 @@ export function useChat(walletAddress: string | null) {
       setLoading(true);
 
       try {
-        const response = await chat(text, walletAddress, getSessionId());
-        const botText = responseToText(response);
-        addMessage({ role: "bot", text: botText, response });
+        const response = await fetchAgentResponse(text);
+        appendBotResponse(response);
       } catch (e) {
         addMessage({
           role: "bot",
@@ -43,7 +52,7 @@ export function useChat(walletAddress: string | null) {
         setLoading(false);
       }
     },
-    [walletAddress, loading, addMessage],
+    [walletAddress, loading, addMessage, fetchAgentResponse, appendBotResponse],
   );
 
   /** Called when user taps Confirm on a draft card */
@@ -56,23 +65,67 @@ export function useChat(walletAddress: string | null) {
     await send("cancel");
   }, [send]);
 
-  /** Sign and broadcast all transactions from a tx_ready response */
+  async function continuePendingDraftAfterApproval() {
+    addMessage({
+      role: "bot",
+      text: "✅ Approval confirmed. Preparing your payment transaction…",
+    });
+
+    try {
+      const response = await fetchAgentResponse("confirm");
+      if (response.type === "tx_ready") {
+        await executeTransactions(response.tx.transactions, response.tx.token.symbol);
+        return;
+      }
+      appendBotResponse(response);
+    } catch (e) {
+      addMessage({
+        role: "bot",
+        text:
+          `⚠️ Approval succeeded, but I couldn't prepare the payment automatically: ` +
+          `${e instanceof Error ? e.message : String(e)}.\n\nTap Confirm again to continue.`,
+      });
+    }
+  }
+
+  async function executeTransactions(
+    transactions: EncodedTxJson[],
+    tokenSymbol: string,
+    options?: { continuePendingDraft?: boolean },
+  ) {
+    const hashes: string[] = [];
+    for (const tx of transactions) {
+      const hash = await sendTransaction(tx);
+      hashes.push(hash);
+      if (options?.continuePendingDraft) {
+        await waitForTransaction(hash);
+      }
+    }
+
+    if (options?.continuePendingDraft) {
+      await continuePendingDraftAfterApproval();
+      return;
+    }
+
+    const links = hashes
+      .map((h) => `[View tx](https://celoscan.io/tx/${h})`)
+      .join("\n");
+    addMessage({
+      role: "bot",
+      text: `✅ Payment sent in ${tokenSymbol} from your wallet.\n\n${links}`,
+    });
+  }
+
+  /** Sign and broadcast wallet transactions */
   const signAndSend = useCallback(
-    async (transactions: EncodedTxJson[], tokenSymbol: string) => {
+    async (
+      transactions: EncodedTxJson[],
+      tokenSymbol: string,
+      options?: { continuePendingDraft?: boolean },
+    ) => {
       setTxLoading(true);
-      const hashes: string[] = [];
       try {
-        for (const tx of transactions) {
-          const hash = await sendTransaction(tx);
-          hashes.push(hash);
-        }
-        const links = hashes
-          .map((h) => `[View tx](https://celoscan.io/tx/${h})`)
-          .join("\n");
-        addMessage({
-          role: "bot",
-          text: `✅ Payment sent in ${tokenSymbol} from your wallet.\n\n${links}`,
-        });
+        await executeTransactions(transactions, tokenSymbol, options);
       } catch (e) {
         addMessage({
           role: "bot",
@@ -82,7 +135,7 @@ export function useChat(walletAddress: string | null) {
         setTxLoading(false);
       }
     },
-    [addMessage],
+    [addMessage, executeTransactions],
   );
 
   const addBotMessage = useCallback((text: string) => {
