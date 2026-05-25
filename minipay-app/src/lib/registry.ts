@@ -77,17 +77,34 @@ export async function isRegisteredOnChain(address: `0x${string}`): Promise<boole
 
 /**
  * Scan NameRegistered events to get the actual username string for an address.
- * Scans in a shrinking window to handle RPC range limits.
+ * First confirms the wallet is registered, then scans progressively from the
+ * widest useful range down to smaller windows to handle RPC range limits.
  */
 export async function getUsernameFromChain(address: `0x${string}`): Promise<string | null> {
   try {
     const client = getPublicClient();
-    const latest = await client.getBlockNumber();
+    const nameHash = await client.readContract({
+      address: USERNAME_REGISTRY,
+      abi: REGISTRY_ABI,
+      functionName: "getNameHashByAddress",
+      args: [address],
+    });
+    if ((nameHash as string) === ZERO_HASH) return null;
 
-    // Start small (recent registrations) — avoids slow 100k-block scans on load
-    const windows = [2_000n, 10_000n, 50_000n, 100_000n];
+    let latest = 0n;
+    try {
+      latest = await client.getBlockNumber();
+    } catch {
+      latest = 0n;
+    }
+
+    const windows = [latest, 500_000n, 100_000n, 50_000n, 10_000n, 2_000n];
+    const tried = new Set<string>();
     for (const window of windows) {
       const fromBlock = latest > window ? latest - window : 0n;
+      const key = fromBlock.toString();
+      if (tried.has(key)) continue;
+      tried.add(key);
       try {
         const logs = await client.getLogs({
           address: USERNAME_REGISTRY,
@@ -101,7 +118,7 @@ export async function getUsernameFromChain(address: `0x${string}`): Promise<stri
           return name ?? null;
         }
       } catch {
-        // Try smaller window
+        // Try a smaller window next.
       }
     }
     return null;

@@ -172,7 +172,9 @@ export function ChatInterface() {
             onConfirm={confirm}
             onCancel={cancel}
             onSign={(r) => handleSign(r as Extract<Message["response"], { type: "tx_ready" }>)}
-            onApprove={(txs, symbol) => signAndSend(txs, symbol ?? "USDC")}
+            onApprove={(txs, symbol) =>
+              signAndSend(txs, symbol ?? "USDC", { continuePendingDraft: true })
+            }
             txLoading={txLoading}
           />
         ))}
