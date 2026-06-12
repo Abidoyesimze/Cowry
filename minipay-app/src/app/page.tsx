@@ -14,8 +14,8 @@ const FEATURES = [
   },
   {
     icon: "🌉",
-    title: "Cross-Chain",
-    desc: "Send USDC or USDm from Celo straight to a wallet on Ethereum, Base, Arbitrum, and 6 more chains.",
+    title: "Cross-Chain Send",
+    desc: "Send Celo USDC or USDm to anyone — they receive USDC on Ethereum, Base, Arbitrum, and 6 more chains.",
   },
   {
     icon: "🤖",
@@ -36,7 +36,7 @@ const FEATURES = [
 
 const STEPS = [
   { step: "01", title: "Open Cowry", desc: "Works in any browser or inside MiniPay. Your wallet connects automatically — no signup needed." },
-  { step: "02", title: "Grant Cowry AI access", desc: "One-time approval lets the AI agent execute payments on your behalf — no @username or registration required." },
+  { step: "02", title: "Grant Cowry AI access", desc: "One-time approval lets the AI agent execute payments on your behalf." },
   { step: "03", title: "Type what you want", desc: `"Send $50 to a bank account in Nigeria" or "Bridge 20 USDC to Base".` },
   { step: "04", title: "Tap Confirm", desc: "Review the preview, tap Confirm. Cowry handles the rest — on-chain and off-chain." },
 ];
@@ -246,11 +246,11 @@ export default function LandingPage() {
       {/* ── Cross-chain ─────────────────────────────────────────────────── */}
       <section className="px-6 py-20 bg-cowry-darker">
         <div className="max-w-4xl mx-auto text-center">
-          <p className="text-cowry-blue text-xs font-semibold tracking-widest uppercase mb-3">Cross-Chain</p>
-          <h2 className="text-3xl sm:text-4xl font-black mb-4">Send from Celo to anywhere</h2>
+          <p className="text-cowry-blue text-xs font-semibold tracking-widest uppercase mb-3">Cross-Chain Send</p>
+          <h2 className="text-3xl sm:text-4xl font-black mb-4">Send from Celo, delivered on any chain</h2>
           <p className="text-cowry-muted text-base max-w-xl mx-auto mb-10 leading-relaxed">
-            Powered by LI.FI. Send USDC or USDm from your Celo wallet straight to a
-            USDC address on any of these chains.
+            Powered by LI.FI. Send Celo USDC or USDm to anyone — they receive USDC
+            directly in their wallet on any of these chains.
           </p>
           <div className="flex flex-wrap justify-center gap-3">
             {CHAINS.map((c) => (
@@ -273,8 +273,8 @@ export default function LandingPage() {
           <h2 className="text-2xl sm:text-3xl font-black mb-8">Pay in USDm or USDC</h2>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             {[
-              { symbol: "USDm", name: "Mento Dollar", desc: "Native Celo stablecoin — 18 decimals. Default in MiniPay.", color: "from-cowry-blue to-cowry-mint" },
-              { symbol: "USDC", name: "USD Coin",     desc: "Circle's native USDC on Celo — 6 decimals. Used for cross-border remittance.", color: "from-blue-500 to-blue-400" },
+              { symbol: "USDm", name: "Mento Dollar", desc: "Native Celo stablecoin. Default in MiniPay. Use it for cross-chain sends.", color: "from-cowry-blue to-cowry-mint" },
+              { symbol: "USDC", name: "USD Coin",     desc: "Circle's native USDC on Celo. Use it for cross-chain sends and cross-border remittance.", color: "from-blue-500 to-blue-400" },
             ].map((t) => (
               <div
                 key={t.symbol}
@@ -322,10 +322,10 @@ export default function LandingPage() {
           <div className="flex items-center gap-2">
             <Image src="/cowry.png" alt="Cowry" width={24} height={24} className="rounded" />
             <span className="text-sm font-semibold text-cowry-muted">Cowry</span>
-            <span className="text-cowry-border">·</span>
-            <span className="text-xs text-cowry-border">Talk. Send. Automate.</span>
+            <span className="text-cowry-muted">·</span>
+            <span className="text-xs text-cowry-muted">Talk. Send. Automate.</span>
           </div>
-          <p className="text-xs text-cowry-border">Built on Celo · Powered by LI.FI & Paycrest · ERC-8004 Agent Identity</p>
+          <p className="text-xs text-cowry-muted">Built on Celo · Powered by LI.FI & Paycrest · ERC-8004 Agent Identity</p>
         </div>
       </footer>
 
