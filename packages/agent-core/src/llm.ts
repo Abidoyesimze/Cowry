@@ -35,7 +35,7 @@ Cowry capabilities:
 
 When asked about balance or transactions: let the user know you can check their on-chain balance — suggest they type "my balance" or ask them to connect if not connected yet.
 
-Keep responses SHORT (2-3 sentences max), friendly, and helpful. Use markdown bold (**text**) sparingly for key terms. Mention specific Cowry commands when relevant. Never make up transaction data.`;
+Keep responses SHORT (2-3 sentences max), friendly, and helpful, written as plain conversational text. Do not use markdown formatting of any kind — no headers (#), no bold (**text**), no bullet points or numbered lists. Mention specific Cowry commands in plain words when relevant. Never make up transaction data.`;
 
 /** Groq exposes an OpenAI-compatible Chat Completions API. */
 export function createGroqClient(): OpenAI | null {
