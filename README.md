@@ -252,6 +252,8 @@ orchestration:
 
 ## Roadmap
 
+- **Onramp (coming soon)** — buy USDC directly with local currency via Paycrest,
+  the on-ramp counterpart to today's remittance off-ramp
 - More remittance corridors and currencies
 - Chat-driven group payments and splits (the onchain primitives already exist in
   GroupRegistry / CowryPay)

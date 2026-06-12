@@ -94,7 +94,7 @@ async function resolveGroupId(
 
   const name = intent.groupName?.trim();
   if (!name) {
-    return { error: "Please say which group — e.g. **remove @alice from Friends**" };
+    return { error: "Please say which group — e.g. remove @alice from Friends" };
   }
   if (!wallet) {
     return { error: "Connect your wallet so I can look up the group." };
@@ -111,13 +111,13 @@ function chainAdminGate(
   wallet: `0x${string}` | undefined,
 ): string | null {
   if (deps.mode !== "chain") {
-    return "Group admin commands need **chain mode**. Set **CELO_RPC_URL** (or **RPC_URL**).";
+    return "Group admin commands need chain mode. Set CELO_RPC_URL (or RPC_URL).";
   }
   if (!deps.publicClient) {
     return "No RPC client.";
   }
   if (!wallet) {
-    return "Pass **walletAddress** (the wallet that will sign).";
+    return "Pass walletAddress (the wallet that will sign).";
   }
   return null;
 }
@@ -225,7 +225,7 @@ async function maybeTokenReadinessBlock(
   if (r.reason === "insufficient_balance") {
     return {
       type: "clarify",
-      question: `Not enough ${sym}: this payment needs **${req} ${sym}** but your balance is **${bal} ${sym}**. Fund your wallet, then try again.`,
+      question: `Not enough ${sym}: this payment needs ${req} ${sym} but your balance is ${bal} ${sym}. Fund your wallet, then try again.`,
     };
   }
 
@@ -234,7 +234,7 @@ async function maybeTokenReadinessBlock(
   );
   return {
     type: "clarify",
-    question: `CowryPay needs permission to pull **${req} ${sym}**; your ${sym} allowance for CowryPay is only **${alw} ${sym}**. Sign **approve** below, then send the same payment again and **confirm**.`,
+    question: `CowryPay needs permission to pull ${req} ${sym}; your ${sym} allowance for CowryPay is only ${alw} ${sym}. Sign approve below, then send the same payment again and confirm.`,
     transactions: [approveTx],
     tokenSymbol: sym,
   };
@@ -371,14 +371,14 @@ export async function paymentFromIntent(
       return {
         ok: false,
         question:
-          "Which group should get paid? Example: **I want to send $100 to group Friends** (use your group’s name).",
+          "Which group should get paid? Example: I want to send $100 to group Friends (use your group’s name).",
       };
     }
     if (deps.mode === "chain" && !wallet) {
       return {
         ok: false,
         question:
-          "Pass **walletAddress** (your wallet) in the API body so we can find groups you own or belong to.",
+          "Pass walletAddress (your wallet) in the API body so we can find groups you own or belong to.",
       };
     }
     const g = await deps.resolveGroupByName(gname, wallet);
@@ -435,7 +435,7 @@ export async function paymentFromIntent(
       return {
         ok: false,
         question:
-          "I need a **total** amount and a group, e.g. **split 100 USDC across group Friends** or **split 50 USDm in Friends group**.",
+          "I need a total amount and a group, e.g. split 100 USDC across group Friends or split 50 USDm in Friends group.",
       };
     }
     const groupLabel = gname
@@ -448,14 +448,14 @@ export async function paymentFromIntent(
       return {
         ok: false,
         question:
-          "Which group? Example: **split $90 across group Team** (include the group name).",
+          "Which group? Example: split $90 across group Team (include the group name).",
       };
     }
     if (deps.mode === "chain" && !wallet) {
       return {
         ok: false,
         question:
-          "Pass **walletAddress** so we can resolve the group on-chain.",
+          "Pass walletAddress so we can resolve the group on-chain.",
       };
     }
     const g = await deps.resolveGroupByName(gname, wallet);
@@ -482,7 +482,7 @@ export async function paymentFromIntent(
     }));
     const policy = policyCheck(recipients);
     if (policy) return { ok: false, question: policy };
-    const preview = `${buildPreviewLines(recipients, tokenSymbol)}\n(One **payGroupSplit** tx on-chain; preview shows an even micro-split for display.)`;
+    const preview = `${buildPreviewLines(recipients, tokenSymbol)}\n(One payGroupSplit tx on-chain; preview shows an even micro-split for display.)`;
 
     if (g.kind === "onchain") {
       const txPlan: DraftTxPlan = {
@@ -609,7 +609,7 @@ export async function adminFromIntent(
       return {
         kind: "clarify",
         question:
-          "Say **register as yourname** (3–32 characters: lowercase letters and numbers only).",
+          "Say register as yourname (3–32 characters: lowercase letters and numbers only).",
       };
     }
     const res = await deps.adminRegisterUsername(name, wallet);
@@ -628,7 +628,7 @@ export async function adminFromIntent(
       return {
         kind: "clarify",
         question:
-          "Say how much USDC to approve, e.g. **approve 500 usdc for cowry** or **approve cowry to spend 50**.",
+          "Say how much USDC to approve, e.g. approve 500 usdc for cowry or approve cowry to spend 50.",
       };
     }
     if (deps.mode !== "chain") {
@@ -636,14 +636,14 @@ export async function adminFromIntent(
         kind: "info",
         message:
           deps.reason ??
-          "Celo RPC is not configured. Set **CELO_RPC_URL** (or **RPC_URL**) so Cowry can build on-chain approval transactions.",
+          "Celo RPC is not configured. Set CELO_RPC_URL (or RPC_URL) so Cowry can build on-chain approval transactions.",
       };
     }
     if (!wallet) {
       return {
         kind: "clarify",
         question:
-          "Pass **walletAddress** (the wallet that will sign the approve transaction).",
+          "Pass walletAddress (the wallet that will sign the approve transaction).",
       };
     }
     const meta = await deps.getMeta();
@@ -652,7 +652,7 @@ export async function adminFromIntent(
     const tx = encodeErc20Approve(approveToken.address, meta.cowryPay, base);
     return {
       kind: "info",
-      message: `Sign **${approveToken.symbol}.approve** so CowryPay can pull up to **${amt} ${approveToken.symbol}** (approve more if you plan several payments).`,
+      message: `Sign ${approveToken.symbol}.approve so CowryPay can pull up to ${amt} ${approveToken.symbol} (approve more if you plan several payments).`,
       transactions: [encodedCallToJson(tx)],
     };
   }
@@ -666,7 +666,7 @@ export async function adminFromIntent(
     if (handles.length === 0) {
       return {
         kind: "clarify",
-        question: "Who do you want to add? e.g. **add @mack to Friends**",
+        question: "Who do you want to add? e.g. add @mack to Friends",
       };
     }
     const resolved: { username: string; address: `0x${string}` }[] = [];
@@ -686,7 +686,7 @@ export async function adminFromIntent(
           await agentSendTx(c.to as `0x${string}`, c.data as `0x${string}`, 0n);
         }
         const names = resolved.map(m => `@${m.username}`).join(", ");
-        return { kind: "info", message: `✅ Added ${names} to group **${gid}**.` };
+        return { kind: "info", message: `✅ Added ${names} to group ${gid}.` };
       } catch (err) {
         return { kind: "clarify", question: `Agent could not add member: ${err instanceof Error ? err.message : String(err)}` };
       }
@@ -694,7 +694,7 @@ export async function adminFromIntent(
     const txs = resolved.map(m => encodedCallToJson(encodeAddMember(gid, m.address)));
     return {
       kind: "info",
-      message: `Sign **${txs.length}** addMember tx(s) for group **${gid}**.`,
+      message: `Sign ${txs.length} addMember tx(s) for group ${gid}.`,
       transactions: txs,
     };
   }
@@ -706,7 +706,7 @@ export async function adminFromIntent(
     const gid = groupRes.gid;
     const handles = intent.members ?? [];
     if (handles.length === 0) {
-      return { kind: "clarify", question: "Who do you want to remove? e.g. **remove @mack from Friends**" };
+      return { kind: "clarify", question: "Who do you want to remove? e.g. remove @mack from Friends" };
     }
     const resolvedRm: { username: string; address: `0x${string}` }[] = [];
     for (const h of handles) {
@@ -725,7 +725,7 @@ export async function adminFromIntent(
           await agentSendTx(c.to as `0x${string}`, c.data as `0x${string}`, 0n);
         }
         const names = resolvedRm.map(m => `@${m.username}`).join(", ");
-        return { kind: "info", message: `✅ Removed ${names} from group **${gid}**.` };
+        return { kind: "info", message: `✅ Removed ${names} from group ${gid}.` };
       } catch (err) {
         return { kind: "clarify", question: `Agent could not remove member: ${err instanceof Error ? err.message : String(err)}` };
       }
@@ -733,7 +733,7 @@ export async function adminFromIntent(
     const rmTxs = resolvedRm.map(m => encodedCallToJson(encodeRemoveMember(gid, m.address)));
     return {
       kind: "info",
-      message: `Sign **${rmTxs.length}** removeMember tx(s) for group **${gid}**.`,
+      message: `Sign ${rmTxs.length} removeMember tx(s) for group ${gid}.`,
       transactions: rmTxs,
     };
   }
@@ -744,13 +744,13 @@ export async function adminFromIntent(
     if (gid == null) {
       return {
         kind: "clarify",
-        question: "Say which group id, e.g. **cancel group 3**.",
+        question: "Say which group id, e.g. cancel group 3.",
       };
     }
     const tx = encodeCancelGroup(gid);
     return {
       kind: "info",
-      message: `Sign **cancelGroup** for id **${gid}** (owner only). Future group pays will be blocked.`,
+      message: `Sign cancelGroup for id ${gid} (owner only). Future group pays will be blocked.`,
       transactions: [encodedCallToJson(tx)],
     };
   }
@@ -759,7 +759,7 @@ export async function adminFromIntent(
       return {
         kind: "clarify",
         question:
-          "Pass **walletAddress** in the request body to list on-chain groups.",
+          "Pass walletAddress in the request body to list on-chain groups.",
       };
     }
     const message = await deps.listGroups(wallet);
@@ -769,16 +769,14 @@ export async function adminFromIntent(
     return {
       kind: "info",
       message: [
-        "Cowry — send money abroad, bridge crypto, and earn on Celo:",
-        "• **Send $50 to a bank account in Nigeria** — cross-border payout via Paycrest, recipient doesn't need Cowry",
-        "• **Send $20 to mobile money in Kenya, 0712345678** — same idea for mobile money",
-        "• **Bridge USDC** from Ethereum, Base, Arbitrum and more to Celo",
-        "• **register as yourname** — links @name to your wallet (sign UsernameRegistry.register)",
-        "• **approve 500 USDC for cowry** or **approve 500 USDm for cowry**",
-        "• **show me yield options** / **deposit 100 USDC** — earn via Morpho vaults",
-        "• **my balance** / **my transactions**",
-        "• **GET /tx/0x…** — receipt status after you broadcast",
-        "After a quote or draft: **confirm** or **cancel**.",
+        "Cowry — send money abroad and bridge crypto on Celo:",
+        "• Send $50 to a bank account in Nigeria — cross-border payout via Paycrest, recipient doesn't need Cowry",
+        "• Send $20 to mobile money in Kenya, 0712345678 — same idea for mobile money",
+        "• Send USDC or USDm from Celo to USDC on Ethereum, Base, Arbitrum and more",
+        "• approve 500 USDC for cowry",
+        "• my balance / my transactions",
+        "• GET /tx/0x… — receipt status after you broadcast",
+        "After a quote or draft: confirm or cancel.",
       ].join("\n"),
     };
   }
@@ -795,7 +793,7 @@ export async function adminFromIntent(
     if (!name || mem.length === 0) {
       return {
         kind: "clarify",
-        question: "What do you want to name this group, and who should be in it?\n\nExample: **create group Friends with @alice, @bob**",
+        question: "What do you want to name this group, and who should be in it?\n\nExample: create group Friends with @alice, @bob",
       };
     }
     const res = await deps.adminCreateGroup(name, mem, wallet);
@@ -812,7 +810,7 @@ export async function adminFromIntent(
     if (!wallet) {
       return {
         kind: "info",
-        message: "Pass **walletAddress** in the request to check your balance.",
+        message: "Pass walletAddress in the request to check your balance.",
       };
     }
     if (deps.mode !== "chain" || !deps.publicClient) {
@@ -830,10 +828,10 @@ export async function adminFromIntent(
       return {
         kind: "info",
         message:
-          `💳 **Balance for ${wallet.slice(0, 6)}…${wallet.slice(-4)}**\n\n` +
-          `• **USDm:** ${Number(usdm).toLocaleString()} USDm\n` +
-          `• **USDC:** ${Number(usdc).toLocaleString()} USDC\n\n` +
-          `_Network: Celo Mainnet_`,
+          `💳 Balance for ${wallet.slice(0, 6)}…${wallet.slice(-4)}\n\n` +
+          `• USDm: ${Number(usdm).toLocaleString()} USDm\n` +
+          `• USDC: ${Number(usdc).toLocaleString()} USDC\n\n` +
+          `Network: Celo Mainnet`,
       };
     } catch (e) {
       return {
@@ -932,7 +930,7 @@ export async function adminFromIntent(
     return {
       kind: "info",
       message:
-        "Hi! I'm Cowry — your AI payment assistant on Celo.\n\nTry: **send $50 to a bank account in Nigeria**, **bridge USDC to Celo**, **my balance**, or say **help** for all commands.",
+        "Hi! I'm Cowry — your AI payment assistant on Celo.\n\nTry: send $50 to a bank account in Nigeria, send USDC to another chain, my balance, or say help for all commands.",
     };
   }
 
@@ -984,7 +982,13 @@ export async function earnFromIntent(
     if (!walletAddress) {
       return {
         type: "clarify",
-        question: "Pass **walletAddress** so we can build your deposit transaction.",
+        question: "Pass walletAddress so we can build your deposit transaction.",
+      };
+    }
+    if (intent.token && intent.token.toUpperCase() !== "USDC") {
+      return {
+        type: "clarify",
+        question: `This vault only accepts USDC deposits — ${intent.token} isn't supported. Want to deposit USDC instead? e.g. *deposit 0.1 USDC into vault 1*`,
       };
     }
     const amount = intent.amount;
@@ -997,7 +1001,7 @@ export async function earnFromIntent(
     if (amount < 0.02) {
       return {
         type: "clarify",
-        question: `Minimum deposit is **0.02 USDC** (balances visible from 0.02 USDC on Morpho). You entered ${amount} USDC.`,
+        question: `Minimum deposit is 0.02 USDC (balances visible from 0.02 USDC on Morpho). You entered ${amount} USDC.`,
       };
     }
 
@@ -1080,7 +1084,7 @@ export async function earnFromIntent(
     if (!walletAddress) {
       return {
         type: "clarify",
-        question: "Pass **walletAddress** so I can check your yield positions.",
+        question: "Pass walletAddress so I can check your yield positions.",
       };
     }
     let positions;
@@ -1226,12 +1230,12 @@ async function buildRemittanceQuote(
   const rateLabel = `1 USD ≈ ${symbol}${rateNum.toLocaleString(undefined, { maximumFractionDigits: 2 })} (locked for ~1hr)`;
 
   const preview =
-    `🌍 **Cross-Border Payment**\n` +
+    `🌍 Cross-Border Payment\n` +
     `To: ${recipientLabel}\n` +
     `They get: ${symbol}${estimatedReceive} ${slots.currencyCode}\n` +
     `You send: ${slots.amount} USDC\n` +
     `Rate: ${rateLabel}\n\n` +
-    `Reply **confirm** to send, or **cancel** to abort.`;
+    `Reply confirm to send, or cancel to abort.`;
 
   return {
     type: "remittance_quote",
@@ -1407,7 +1411,7 @@ export async function remittanceFromIntent(
   if (amount == null || !(amount > 0)) {
     return {
       type: "clarify",
-      question: "How much USDC would you like to send abroad? e.g. **send $50 to a bank account in Nigeria**",
+      question: "How much USDC would you like to send abroad? e.g. send $50 to a bank account in Nigeria",
     };
   }
 
@@ -1516,7 +1520,7 @@ async function confirmRemittance(
         type: "clarify",
         question: `Could not create the payout order (${
           e instanceof Error ? e.message : String(e)
-        }). Reply **confirm** to retry, or **cancel** to abort.`,
+        }). Reply confirm to retry, or cancel to abort.`,
       };
     }
   }
@@ -1532,9 +1536,8 @@ async function confirmRemittance(
     const explorerUrl = `https://celoscan.io/tx/${txHash}`;
     const symbol = getCurrencySymbol(quote.currencyCode);
     const preview =
-      `✅ Sent! ${quote.accountName} will receive **${symbol}${quote.estimatedReceive} ${quote.currencyCode}** ` +
+      `✅ Sent! ${quote.accountName} will receive ${symbol}${quote.estimatedReceive} ${quote.currencyCode} ` +
       `in their ${quote.institutionName} account shortly.\n\n` +
-      `[View on CeloScan](${explorerUrl})\n` +
       `Paycrest order: ${order.id}`;
     return {
       type: "tx_sent",
@@ -1652,14 +1655,14 @@ export async function handleUserMessage(
         return {
           type: "clarify",
           question:
-            "Pass **walletAddress** in the request body to confirm (must match a registered Cowry wallet).",
+            "Pass walletAddress in the request body to confirm (must match a registered Cowry wallet).",
         };
       }
       if (!(await deps.isWalletRegistered(walletAddress))) {
         return {
           type: "clarify",
           question:
-            "This wallet is not registered yet. Say **register as yourname**, sign the tx, then confirm again.",
+            "This wallet is not registered yet. Say register as yourname, sign the tx, then confirm again.",
         };
       }
       if (deps.publicClient) {
@@ -1758,7 +1761,7 @@ export async function handleUserMessage(
       setPendingDraft(sessionId, null);
       return { type: "cancelled", message: "Draft cancelled. What next?" };
     }
-    return { type: "info", message: "No active draft. Say **help** for examples." };
+    return { type: "info", message: "No active draft. Say help for examples." };
   }
 
   const intent = await parseFn(t, signal);
@@ -1775,7 +1778,7 @@ export async function handleUserMessage(
     return {
       type: "clarify",
       question:
-        "I didn't quite get that. Try **send $50 to a bank account in Nigeria**, **bridge USDC to Celo**, **my balance**, or say **help** for all commands.",
+        "I didn't quite get that. Try send $50 to a bank account in Nigeria, send USDC to another chain, my balance, or say help for all commands.",
     };
   }
 
@@ -1812,14 +1815,14 @@ export async function handleUserMessage(
         return {
           type: "clarify",
           question:
-            "Include **walletAddress** in the JSON body. We use it to confirm your wallet is registered with a Cowry name before sending, and to find your groups.",
+            "Include walletAddress in the JSON body. We use it to confirm your wallet is registered with a Cowry name before sending, and to find your groups.",
         };
       }
       if (!(await deps.isWalletRegistered(walletAddress))) {
         return {
           type: "clarify",
           question:
-            "Link your wallet to a Cowry name first: say **register as yourname** (3–32 chars, a–z and 0–9), sign the UsernameRegistry transaction, then try paying again.",
+            "Link your wallet to a Cowry name first: say register as yourname (3–32 chars, a–z and 0–9), sign the UsernameRegistry transaction, then try paying again.",
         };
       }
     }

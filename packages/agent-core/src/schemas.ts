@@ -73,6 +73,8 @@ export const parsedIntentSchema = z.discriminatedUnion("kind", [
     minApy: z.number().optional(),
     /** LIST_OPPORTUNITIES: chain name filter (e.g. "Base") */
     chainName: z.string().optional(),
+    /** DEPOSIT_YIELD: token the user explicitly named, e.g. "USDm". Only USDC deposits are supported — used to clarify/reject non-USDC requests. */
+    token: z.string().optional(),
   }),
   z.object({
     kind: z.literal("remittance"),
