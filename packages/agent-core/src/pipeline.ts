@@ -784,7 +784,7 @@ export async function adminFromIntent(
     const name = intent.groupName?.trim();
     const mem = intent.members ?? [];
     if (!name && mem.length > 0) {
-      setPendingGroupMembers(sessionId ?? "", mem);
+      await setPendingGroupMembers(sessionId ?? "", mem);
       return {
         kind: "clarify",
         question: `What do you want to name this group?`,
@@ -966,7 +966,7 @@ export async function earnFromIntent(
         }. Try again in a moment.`,
       };
     }
-    setEarnOpportunities(sessionId, opps);
+    await setEarnOpportunities(sessionId, opps);
     const list = formatOpportunitiesList(opps);
     return {
       type: "info",
@@ -1006,12 +1006,12 @@ export async function earnFromIntent(
     }
 
     // Get the selected vault (or default to vault 1 = Morpho)
-    const opp = getEarnOpportunity(sessionId, intent.vaultIndex ?? 1);
+    const opp = await getEarnOpportunity(sessionId, intent.vaultIndex ?? 1);
     if (!opp) {
       // No opportunities list in session — fetch first
       try {
         const opps = await getOpportunities({ tokenSymbol: "USDC", limit: 5 });
-        setEarnOpportunities(sessionId, opps);
+        await setEarnOpportunities(sessionId, opps);
       } catch {
         return {
           type: "clarify",
@@ -1019,7 +1019,7 @@ export async function earnFromIntent(
         };
       }
     }
-    const vault = getEarnOpportunity(sessionId, intent.vaultIndex ?? 1);
+    const vault = await getEarnOpportunity(sessionId, intent.vaultIndex ?? 1);
     if (!vault) {
       return {
         type: "clarify",
@@ -1063,7 +1063,7 @@ export async function earnFromIntent(
       txGasPrice: tx.gasPrice,
       createdAt:  Date.now(),
     };
-    setPendingYieldDeposit(sessionId, deposit);
+    await setPendingYieldDeposit(sessionId, deposit);
 
     return {
       type: "info",
@@ -1161,7 +1161,7 @@ async function buildRemittanceQuote(
     accountName = await verifyAccount(slots.institutionCode, slots.accountIdentifier, signal);
   } catch (e) {
     // Keep the rest of the slots but ask the user to re-check the account number.
-    setPendingRemittance(sessionId, {
+    await setPendingRemittance(sessionId, {
       amount: slots.amount,
       token: slots.token,
       countryCode: slots.countryCode,
@@ -1193,7 +1193,7 @@ async function buildRemittanceQuote(
       memo: "Cowry remittance",
     }, signal);
   } catch (e) {
-    setPendingRemittance(sessionId, null);
+    await setPendingRemittance(sessionId, null);
     return {
       type: "clarify",
       question: `Couldn't get a payout quote right now (${
@@ -1227,8 +1227,8 @@ async function buildRemittanceQuote(
     validUntil: order.validUntil,
   };
 
-  setPendingRemittance(sessionId, null);
-  setPendingRemittanceQuote(sessionId, quote);
+  await setPendingRemittance(sessionId, null);
+  await setPendingRemittanceQuote(sessionId, quote);
 
   const recipientLabel = `${resolvedAccountName} (${displayLabel})`;
   const rateLabel = `1 USD ≈ ${symbol}${rateNum.toLocaleString(undefined, { maximumFractionDigits: 2 })} (locked for ~1hr)`;
@@ -1276,14 +1276,14 @@ async function continueRemittanceSlotFilling(
         pending.countryCode = country.countryCode;
         pending.currencyCode = country.currencyCode;
       } else {
-        setPendingRemittance(sessionId, pending);
+        await setPendingRemittance(sessionId, pending);
         return {
           type: "clarify",
           question: `I didn't recognize that country. Which country is the recipient in? (${SUPPORTED_COUNTRIES.join(", ")})`,
         };
       }
     } else {
-      setPendingRemittance(sessionId, pending);
+      await setPendingRemittance(sessionId, pending);
       return {
         type: "clarify",
         question: `Which country is the recipient in? (${SUPPORTED_COUNTRIES.join(", ")})`,
@@ -1315,7 +1315,7 @@ async function continueRemittanceSlotFilling(
           pending.institutionQuery = unconsumed;
           unconsumed = undefined;
         } else {
-          setPendingRemittance(sessionId, pending);
+          await setPendingRemittance(sessionId, pending);
           return {
             type: "clarify",
             question: "What's the bank or mobile money provider? (e.g. GTBank, Access Bank, MTN MoMo)",
@@ -1327,7 +1327,7 @@ async function continueRemittanceSlotFilling(
       try {
         institutions = await getInstitutions(pending.currencyCode, signal);
       } catch (e) {
-        setPendingRemittance(sessionId, pending);
+        await setPendingRemittance(sessionId, pending);
         return {
           type: "clarify",
           question: `Could not look up banks/providers right now (${
@@ -1345,7 +1345,7 @@ async function continueRemittanceSlotFilling(
       } else if (matches.length === 0) {
         pending.institutionQuery = undefined;
         pending.institutionCandidates = institutions.map((i) => ({ name: i.name, code: i.code }));
-        setPendingRemittance(sessionId, pending);
+        await setPendingRemittance(sessionId, pending);
         const list = institutions.map((i, idx) => `${idx + 1}. ${i.name}`).join("\n");
         return {
           type: "clarify",
@@ -1354,7 +1354,7 @@ async function continueRemittanceSlotFilling(
       } else {
         pending.institutionQuery = undefined;
         pending.institutionCandidates = matches.map((m) => ({ name: m.name, code: m.code }));
-        setPendingRemittance(sessionId, pending);
+        await setPendingRemittance(sessionId, pending);
         const list = matches.map((m, idx) => `${idx + 1}. ${m.name}`).join("\n");
         return {
           type: "clarify",
@@ -1370,7 +1370,7 @@ async function continueRemittanceSlotFilling(
       pending.accountIdentifier = unconsumed;
       unconsumed = undefined;
     } else {
-      setPendingRemittance(sessionId, pending);
+      await setPendingRemittance(sessionId, pending);
       return {
         type: "clarify",
         question: "What's the account number (or phone number for mobile money)?",
@@ -1411,7 +1411,7 @@ export async function remittanceFromIntent(
     };
   }
 
-  const existing = getPendingRemittance(sessionId);
+  const existing = await getPendingRemittance(sessionId);
   const amount = intent.amount ?? existing?.amount;
   if (amount == null || !(amount > 0)) {
     return {
@@ -1592,10 +1592,10 @@ export async function handleUserMessage(
 
   // ── Pending group name ────────────────────────────────────────────────────
   // User was asked "What do you want to name this group?" — treat next message as name.
-  const pendingGroupMembers = getPendingGroupMembers(sessionId);
+  const pendingGroupMembers = await getPendingGroupMembers(sessionId);
   if (pendingGroupMembers && !CONFIRM_RE.test(t) && !CANCEL_RE.test(t)) {
     const groupName = t.replace(/^["']|["']$/g, "").trim(); // strip optional quotes
-    setPendingGroupMembers(sessionId, null);
+    await setPendingGroupMembers(sessionId, null);
     if (groupName) {
       const fakeIntent: ParsedIntent = {
         kind: "admin",
@@ -1617,7 +1617,7 @@ export async function handleUserMessage(
   // ── Pending remittance slot-filling ───────────────────────────────────────
   // User was asked for a country / bank / account number — treat the next
   // message as the answer to that question.
-  const pendingRemittance = getPendingRemittance(sessionId);
+  const pendingRemittance = await getPendingRemittance(sessionId);
   if (pendingRemittance && !CONFIRM_RE.test(t) && !CANCEL_RE.test(t)) {
     if (!walletAddress) {
       return {
@@ -1630,7 +1630,7 @@ export async function handleUserMessage(
 
   if (CONFIRM_RE.test(t)) {
     // ── Check remittance quote confirmation ───────────────────────────────
-    const pendingRemit = getPendingRemittanceQuote(sessionId);
+    const pendingRemit = await getPendingRemittanceQuote(sessionId);
     if (pendingRemit) {
       if (!walletAddress) {
         return {
@@ -1638,14 +1638,14 @@ export async function handleUserMessage(
           question: "Connect your wallet to confirm this remittance.",
         };
       }
-      setPendingRemittanceQuote(sessionId, null);
+      await setPendingRemittanceQuote(sessionId, null);
       return confirmRemittance(pendingRemit, deps, walletAddress, signal);
     }
 
     // ── Check yield deposit confirmation first ────────────────────────────
-    const pendingYield = getPendingYieldDeposit(sessionId);
+    const pendingYield = await getPendingYieldDeposit(sessionId);
     if (pendingYield) {
-      setPendingYieldDeposit(sessionId, null);
+      await setPendingYieldDeposit(sessionId, null);
       const earnTx: EncodedTxJson = {
         to: pendingYield.txTo,
         data: pendingYield.txData,
@@ -1663,7 +1663,7 @@ export async function handleUserMessage(
     }
 
     // ── Existing payment draft confirmation ─────────────────────────────
-    const pending = getPendingDraft(sessionId);
+    const pending = await getPendingDraft(sessionId);
     if (!pending) {
       return {
         type: "info",
@@ -1694,8 +1694,8 @@ export async function handleUserMessage(
         if (block) return block;
       }
     }
-    setPendingDraft(sessionId, null);
-    clearDraft(pending.draftId);
+    await setPendingDraft(sessionId, null);
+    await clearDraft(pending.draftId);
 
     // ── Agent-executed path ────────────────────────────────────────────────
     // The Cowry AI agent signs and broadcasts the tx directly.
@@ -1761,24 +1761,24 @@ export async function handleUserMessage(
 
   if (CANCEL_RE.test(t)) {
     // Clear remittance quote/slot-filling if pending
-    if (getPendingRemittanceQuote(sessionId)) {
-      setPendingRemittanceQuote(sessionId, null);
+    if (await getPendingRemittanceQuote(sessionId)) {
+      await setPendingRemittanceQuote(sessionId, null);
       return { type: "cancelled", message: "Remittance cancelled. What next?" };
     }
-    if (getPendingRemittance(sessionId)) {
-      setPendingRemittance(sessionId, null);
+    if (await getPendingRemittance(sessionId)) {
+      await setPendingRemittance(sessionId, null);
       return { type: "cancelled", message: "Remittance cancelled. What next?" };
     }
     // Clear yield deposit if pending
-    const pendingYield = getPendingYieldDeposit(sessionId);
+    const pendingYield = await getPendingYieldDeposit(sessionId);
     if (pendingYield) {
-      setPendingYieldDeposit(sessionId, null);
+      await setPendingYieldDeposit(sessionId, null);
       return { type: "cancelled", message: "Yield deposit cancelled. What next?" };
     }
-    const pending = getPendingDraft(sessionId);
+    const pending = await getPendingDraft(sessionId);
     if (pending) {
-      clearDraft(pending.draftId);
-      setPendingDraft(sessionId, null);
+      await clearDraft(pending.draftId);
+      await setPendingDraft(sessionId, null);
       return { type: "cancelled", message: "Draft cancelled. What next?" };
     }
     return { type: "info", message: "No active draft. Say help for examples." };
@@ -1867,8 +1867,8 @@ export async function handleUserMessage(
     createdAt: Date.now(),
     ...p.draft,
   };
-  saveDraft(draft);
-  setPendingDraft(sessionId, draftId);
+  await saveDraft(draft);
+  await setPendingDraft(sessionId, draftId);
 
   const draftToken = getTokenByAddress(p.draft.txPlan.token);
 
