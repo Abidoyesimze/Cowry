@@ -1310,17 +1310,17 @@ async function continueRemittanceSlotFilling(
     }
 
     if (!pending.institutionCode) {
-      if (!pending.institutionQuery) {
-        if (unconsumed) {
-          pending.institutionQuery = unconsumed;
-          unconsumed = undefined;
-        } else {
-          await setPendingRemittance(sessionId, pending);
-          return {
-            type: "clarify",
-            question: "What's the bank or mobile money provider? (e.g. GTBank, Access Bank, MTN MoMo)",
-          };
-        }
+      // A fresh reply always (re)sets the query — covers both a first answer
+      // and a retry after a failed lookup below.
+      if (unconsumed) {
+        pending.institutionQuery = unconsumed;
+        unconsumed = undefined;
+      } else if (!pending.institutionQuery) {
+        await setPendingRemittance(sessionId, pending);
+        return {
+          type: "clarify",
+          question: "What's the bank or mobile money provider? (e.g. GTBank, Access Bank, MTN MoMo)",
+        };
       }
 
       let institutions: Institution[];
@@ -1416,19 +1416,22 @@ export async function remittanceFromIntent(
   if (amount == null || !(amount > 0)) {
     return {
       type: "clarify",
-      question: "How much would you like to send abroad (USDC or USDT)? e.g. send $50 to a bank account in Nigeria",
+      question: "How much USDC would you like to send abroad? e.g. send $50 to a bank account in Nigeria",
     };
   }
 
+  // Paycrest lists USDT on Celo in its token registry, but its off-ramp
+  // providers don't actually have liquidity configured for it yet — orders
+  // and rate quotes both reject it. Only USDC is usable for now.
   let token: "USDC" | "USDT" = existing?.token ?? "USDC";
   if (intent.token) {
     const upper = intent.token.toUpperCase();
-    if (upper === "USDC" || upper === "USDT") {
+    if (upper === "USDC") {
       token = upper;
     } else {
       return {
         type: "clarify",
-        question: `Cross-border payments support USDC or USDT — ${intent.token} isn't supported. Want to send USDC or USDT instead?`,
+        question: `Cross-border payouts currently support USDC only on Celo — ${intent.token} isn't available yet. Want to send USDC instead?`,
       };
     }
   }
