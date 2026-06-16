@@ -1153,11 +1153,6 @@ function computeFeeSplit(amount: number): { feeAmount: number; netAmount: number
   return { feeAmount, netAmount };
 }
 
-function formatFeePercent(bps: number): string {
-  const pct = bps / 100;
-  return `${Number.isInteger(pct) ? pct : pct.toFixed(2)}%`;
-}
-
 /**
  * Verify the account, lock a real rate by creating a Paycrest order, store
  * the quote (including the order's receiveAddress) in session state, and
@@ -1253,7 +1248,8 @@ async function buildRemittanceQuote(
 
   const recipientLabel = `${resolvedAccountName} (${displayLabel})`;
   const rateLabel = `1 USD ≈ ${symbol}${rateNum.toLocaleString(undefined, { maximumFractionDigits: 2 })} (locked for ~1hr)`;
-  const feeLabel = `${feeAmount} ${slots.token} (${formatFeePercent(REMITTANCE_FEE_BPS)} fee)`;
+
+  const feeLabel = `${feeAmount} ${slots.token}`;
 
   const preview =
     `🌍 Cross-Border Payment\n` +
@@ -1273,7 +1269,6 @@ async function buildRemittanceQuote(
     receiveAmount: estimatedReceive,
     receiveCurrency: slots.currencyCode,
     rateLabel,
-    feeAmount: String(feeAmount),
     feeLabel,
   };
 }
