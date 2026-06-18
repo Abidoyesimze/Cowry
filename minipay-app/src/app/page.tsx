@@ -1,12 +1,13 @@
+import Image from "next/image";
 import Link from "next/link";
 
 const CURRENCIES = [
-  { flag: "🇳🇬", code: "NGN" },
-  { flag: "🇬🇭", code: "GHS" },
-  { flag: "🇰🇪", code: "KES" },
-  { flag: "🇺🇬", code: "UGX" },
-  { flag: "🇹🇿", code: "TZS" },
-  { flag: "🇲🇼", code: "MWK" },
+  { flag: "/Nigeria.png",  code: "NGN" },
+  { flag: "/Ghana.png",    code: "GHS" },
+  { flag: "/Kenya.png",    code: "KES" },
+  { flag: "/Uganda.png",   code: "UGX" },
+  { flag: "/Tazania.png",  code: "TZS" },
+  { flag: "/Malawi.png",   code: "MWK" },
 ];
 
 const CHAINS = ["Optimism", "Arbitrum", "BNB Chain", "Scroll", "Linea", "Base", "Polygon", "Ethereum"];
@@ -59,13 +60,11 @@ const STEPS = [
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-cowry-dark text-white overflow-x-hidden">
+    <div className="h-full overflow-y-auto overflow-x-hidden bg-cowry-dark text-white">
 
       {/* ── Navbar ──────────────────────────────────────────────────────── */}
       <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-4 bg-cowry-dark/90 backdrop-blur-md border-b border-cowry-border">
-        <span className="font-black text-xl tracking-tight text-white">
-          CowryPay<span className="text-cowry-green">.</span>
-        </span>
+        <Image src="/CowryPay.png" alt="CowryPay" width={120} height={32} className="object-contain" />
         <div className="flex items-center gap-3">
           <span className="text-cowry-muted text-lg cursor-pointer hover:text-white transition-colors">⚙</span>
           <Link
@@ -95,7 +94,7 @@ export default function LandingPage() {
         <p className="max-w-md mx-auto text-cowry-muted text-sm sm:text-base leading-relaxed mb-10">
           CowryPay is an AI-powered crypto payment app built on Celo. Send
           money to a bank account abroad, Send Celo USDC to another chain, or
-          check your balance, just type what you want.
+          check your balance — just type what you want.
         </p>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-16">
@@ -113,7 +112,7 @@ export default function LandingPage() {
           </a>
         </div>
 
-        {/* ── Supported Currencies ──────────────────────────────────────── */}
+        {/* ── Supported Currencies ─────────────────────────────────────── */}
         <div className="mb-10">
           <p className="text-cowry-muted text-xs font-semibold tracking-widest uppercase mb-5">
             Supported Currencies
@@ -124,7 +123,7 @@ export default function LandingPage() {
                 key={c.code}
                 className="flex items-center gap-2 bg-cowry-card border border-cowry-border rounded-full px-4 py-2"
               >
-                <span className="text-xl leading-none">{c.flag}</span>
+                <Image src={c.flag} alt={c.code} width={24} height={24} className="rounded-full object-cover" />
                 <span className="text-sm font-semibold text-white">{c.code}</span>
               </div>
             ))}
@@ -148,43 +147,34 @@ export default function LandingPage() {
           </div>
         </div>
 
-        {/* ── Chat Demo ─────────────────────────────────────────────────── */}
+        {/* ── Chat Demo ────────────────────────────────────────────────── */}
         <div className="max-w-sm mx-auto">
           <div className="bg-cowry-card border border-cowry-border rounded-3xl overflow-hidden">
-            {/* Chat messages */}
             <div className="p-5 space-y-3">
-              {/* User message */}
+
               <div className="flex justify-end">
                 <div className="bg-cowry-green text-black font-medium text-xs px-4 py-2.5 rounded-2xl rounded-br-sm max-w-[80%]">
                   Send $50 to a bank account in Nigeria
                 </div>
               </div>
-              <div className="text-right">
-                <span className="text-cowry-muted text-[10px]">10:23am</span>
-              </div>
+              <p className="text-right text-cowry-muted text-[10px]">10:23am</p>
 
-              {/* Bot message */}
               <div className="flex justify-start">
                 <div className="bg-cowry-darker border border-cowry-border text-cowry-muted text-xs px-4 py-2.5 rounded-2xl rounded-bl-sm max-w-[80%]">
                   Got it. Which bank and account number should I send to?
                 </div>
               </div>
-              <div className="text-left">
-                <span className="text-cowry-muted text-[10px]">10:23am</span>
-              </div>
+              <p className="text-left text-cowry-muted text-[10px]">10:23am</p>
 
-              {/* User message */}
               <div className="flex justify-end">
                 <div className="bg-cowry-green text-black font-medium text-xs px-4 py-2.5 rounded-2xl rounded-br-sm max-w-[80%]">
                   0706435785, Bank Opay
                 </div>
               </div>
-              <div className="text-right">
-                <span className="text-cowry-muted text-[10px]">10:24am</span>
-              </div>
+              <p className="text-right text-cowry-muted text-[10px]">10:24am</p>
 
               {/* Confirm card */}
-              <div className="bg-cowry-darker border border-cowry-border rounded-2xl overflow-hidden">
+              <div className="bg-cowry-darker border border-cowry-border rounded-2xl overflow-hidden mt-2">
                 <div className="flex items-center justify-between px-4 py-2.5 border-b border-cowry-border">
                   <span className="text-white text-xs font-bold tracking-wide">CONFIRM TRANSFER</span>
                   <span className="bg-cowry-green text-black text-[10px] font-bold px-2 py-0.5 rounded-full">Quote locked</span>
@@ -207,11 +197,12 @@ export default function LandingPage() {
                   <button className="flex-1 bg-cowry-green text-black font-bold text-xs py-2 rounded-full">
                     Confirm
                   </button>
-                  <button className="flex-1 bg-cowry-card border border-cowry-border text-cowry-muted font-medium text-xs py-2 rounded-full">
+                  <button className="flex-1 bg-cowry-card border border-cowry-border text-cowry-muted text-xs py-2 rounded-full">
                     Cancel
                   </button>
                 </div>
               </div>
+
             </div>
           </div>
           <p className="text-center text-cowry-muted text-xs mt-4">Live on Celo Mainnet</p>
@@ -251,11 +242,10 @@ export default function LandingPage() {
           </div>
 
           <div className="flex flex-col lg:flex-row gap-12 items-center">
-            {/* Steps */}
-            <div className="flex-1 space-y-6">
+            <div className="flex-1 space-y-4">
               {STEPS.map((s) => (
                 <div key={s.n} className="flex gap-4 items-start">
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-cowry-green flex items-center justify-center">
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-cowry-green flex items-center justify-center mt-0.5">
                     <span className="text-black font-black text-xs">{s.n}</span>
                   </div>
                   <div className="bg-cowry-card border border-cowry-border rounded-2xl px-5 py-4 flex-1">
@@ -266,13 +256,14 @@ export default function LandingPage() {
               ))}
             </div>
 
-            {/* Placeholder for the person image — swap with <Image> when you share it */}
-            <div className="flex-1 flex justify-center">
-              <div className="w-64 h-80 bg-cowry-card border border-cowry-border rounded-3xl flex items-center justify-center">
-                <span className="text-cowry-muted text-sm text-center px-6 leading-relaxed">
-                  📱 Person image goes here
-                </span>
-              </div>
+            <div className="flex-shrink-0">
+              <Image
+                src="/human.png"
+                alt="Person using CowryPay on phone"
+                width={280}
+                height={360}
+                className="object-contain rounded-3xl"
+              />
             </div>
           </div>
         </div>
@@ -300,10 +291,8 @@ export default function LandingPage() {
       {/* ── Footer ──────────────────────────────────────────────────────── */}
       <footer className="border-t border-cowry-border px-6 py-8">
         <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <span className="font-black text-sm text-white">
-              CowryPay<span className="text-cowry-green">.</span>
-            </span>
+          <div className="flex items-center gap-3">
+            <Image src="/CowryPay.png" alt="CowryPay" width={90} height={24} className="object-contain" />
             <span className="text-cowry-muted text-xs">· Talk. Send. Automate.</span>
           </div>
           <p className="text-xs text-cowry-muted">© 2026 CowryPay</p>
