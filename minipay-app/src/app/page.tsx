@@ -256,30 +256,37 @@ export default function LandingPage() {
             <h2 className="text-3xl sm:text-4xl font-black">Four steps from zero to paid</h2>
           </div>
 
-          <div className="flex flex-col lg:flex-row gap-12 items-center">
-            <div className="flex-1 space-y-4">
-              {STEPS.map((s) => (
-                <div key={s.n} className="flex gap-4 items-start">
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-cowry-green flex items-center justify-center mt-0.5">
+          <div className="flex flex-col lg:flex-row gap-10 items-center">
+
+            {/* Single container card holding all steps */}
+            <div className="flex-1 bg-cowry-card border border-cowry-border rounded-3xl overflow-hidden">
+              {STEPS.map((s, i) => (
+                <div
+                  key={s.n}
+                  className={`flex gap-4 items-start px-6 py-5 ${i < STEPS.length - 1 ? "border-b border-cowry-border" : ""}`}
+                >
+                  <div className="flex-shrink-0 w-7 h-7 rounded-lg bg-cowry-green flex items-center justify-center">
                     <span className="text-black font-black text-xs">{s.n}</span>
                   </div>
-                  <div className="bg-cowry-card border border-cowry-border rounded-2xl px-5 py-4 flex-1">
-                    <h3 className="font-bold text-white text-sm mb-1">{s.title}</h3>
+                  <div>
+                    <h3 className="font-bold text-white text-sm mb-0.5">{s.title}</h3>
                     <p className="text-cowry-muted text-xs leading-relaxed">{s.desc}</p>
                   </div>
                 </div>
               ))}
             </div>
 
+            {/* Human image */}
             <div className="flex-shrink-0">
               <Image
                 src="/human.png"
                 alt="Person using CowryPay on phone"
-                width={280}
-                height={360}
-                className="object-contain rounded-3xl"
+                width={300}
+                height={380}
+                className="object-contain"
               />
             </div>
+
           </div>
         </div>
       </section>
