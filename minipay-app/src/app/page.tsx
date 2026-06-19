@@ -256,38 +256,38 @@ export default function LandingPage() {
             <h2 className="text-3xl sm:text-4xl font-black">Four steps from zero to paid</h2>
           </div>
 
-          <div className="flex flex-col lg:flex-row gap-10 items-stretch">
+          <div className="flex flex-col lg:flex-row gap-10 items-center">
 
-            {/* Single container card holding all steps — no outer border */}
+            {/* Single container card */}
             <div className="flex-1 bg-cowry-card rounded-3xl overflow-hidden">
               {STEPS.map((s, i) => (
                 <div
                   key={s.n}
-                  className={`flex gap-4 items-start py-5 pr-6 ${i < STEPS.length - 1 ? "border-b border-cowry-border" : ""}`}
+                  className={`flex items-center gap-4 px-6 py-5 ${i < STEPS.length - 1 ? "border-b border-cowry-border" : ""}`}
                 >
-                  {/* Green left accent line */}
-                  <div className="w-1 self-stretch bg-cowry-green rounded-r-full flex-shrink-0" />
-                  <div className="flex gap-4 items-start flex-1">
-                    <div className="flex-shrink-0 w-7 h-7 rounded-lg bg-cowry-green flex items-center justify-center">
-                      <span className="text-black font-black text-xs">{s.n}</span>
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-white text-sm mb-0.5">{s.title}</h3>
-                      <p className="text-cowry-muted text-xs leading-relaxed">{s.desc}</p>
-                    </div>
+                  {/* Thin green left accent */}
+                  <div className="w-0.5 self-stretch bg-cowry-green flex-shrink-0 rounded-full" />
+                  {/* Number badge */}
+                  <div className="flex-shrink-0 w-7 h-7 rounded-lg bg-cowry-green flex items-center justify-center">
+                    <span className="text-black font-black text-xs">{s.n}</span>
+                  </div>
+                  {/* Text */}
+                  <div>
+                    <h3 className="font-bold text-white text-sm mb-0.5">{s.title}</h3>
+                    <p className="text-cowry-muted text-xs leading-relaxed">{s.desc}</p>
                   </div>
                 </div>
               ))}
             </div>
 
-            {/* Human image — aligned to card height */}
-            <div className="flex-shrink-0 flex items-center justify-center">
+            {/* Human image */}
+            <div className="flex-shrink-0">
               <Image
                 src="/human.png"
                 alt="Person using CowryPay on phone"
-                width={320}
-                height={400}
-                className="object-contain h-full max-h-[420px] w-auto"
+                width={340}
+                height={420}
+                className="object-contain"
               />
             </div>
 
