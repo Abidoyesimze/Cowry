@@ -33,7 +33,7 @@ const FEATURES = [
     desc: `Just type or make a voice record of what you want — "Send $50 to a bank account in Nigeria". No forms, no manual entry, no complexity.`,
   },
   {
-    img: "/send.png",
+    img: null,
     title: "Cross-Chain Send",
     desc: "Send Celo USDC or USDm to anyone, they receive USDC on Ethereum, Base, Arbitrum, and 8 more chains.",
   },
@@ -43,7 +43,7 @@ const FEATURES = [
     desc: "An onchain AI agent, registered with Self Agent ID (ERC-8004), parses your intent and executes.",
   },
   {
-    img: null,
+    img: "/send.png",
     title: "Always Confirm",
     desc: "No transaction ever executes without your explicit approval. You stay in control at every step.",
   },
@@ -237,7 +237,7 @@ export default function LandingPage() {
                   {f.img ? (
                     <Image src={f.img} alt={f.title} width={40} height={40} className="object-contain" />
                   ) : (
-                    <span className="text-2xl">🛡️</span>
+                    <span className="text-2xl">⛓️</span>
                   )}
                 </div>
                 <h3 className="font-bold text-white mb-2 text-sm">{f.title}</h3>
