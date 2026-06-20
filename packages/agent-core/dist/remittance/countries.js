@@ -67,6 +67,16 @@ export const SUPPORTED_COUNTRIES = [
     "Tanzania",
     "Malawi"
 ];
+export function listSupportedCountries() {
+    const seen = new Set();
+    const out = [];
+    for (const c of Object.values(COUNTRIES)){
+        if (seen.has(c.currencyCode)) continue;
+        seen.add(c.currencyCode);
+        out.push(c);
+    }
+    return out;
+}
 const CURRENCY_SYMBOLS = {
     NGN: "₦",
     KES: "KSh",

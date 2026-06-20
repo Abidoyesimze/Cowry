@@ -64,7 +64,7 @@ import {
 } from "./lifi/earnClient.js";
 import { getDepositQuote, estimateDailyEarnings } from "./lifi/composerClient.js";
 import type { PendingYieldDeposit } from "./lifi/types.js";
-import { resolveCountry, getCurrencySymbol, SUPPORTED_COUNTRIES } from "./remittance/countries.js";
+import { resolveCountry, getCurrencySymbol, SUPPORTED_COUNTRIES, listSupportedCountries, type CountryInfo } from "./remittance/countries.js";
 import {
   getInstitutions,
   verifyAccount,
@@ -72,7 +72,7 @@ import {
   createOnRampOrder,
   type Institution,
 } from "./remittance/paycrestClient.js";
-import { findInstitutionMatches } from "./remittance/institutionMatch.js";
+import { findInstitutionMatches, isGenericInstitutionQuery } from "./remittance/institutionMatch.js";
 import { findRecipientByNickname, decryptAccountIdentifier } from "./remittance/recipients.js";
 import type { PendingOnRamp, PendingRemittance, PendingRemittanceQuote } from "./remittance/types.js";
 
@@ -1262,6 +1262,37 @@ async function buildRemittanceQuote(
 }
 
 /**
+ * Some institutions only operate in one country (e.g. "OPay" -> Nigeria only).
+ * When the user names a specific provider before naming a country, search
+ * every supported corridor's institution list and, if the name resolves to
+ * exactly one country, infer the country instead of asking for it. Falls back
+ * to null (caller asks the country question as usual) if it's ambiguous,
+ * unmatched, or a lookup fails — cheap substring/alias matching only, no LLM,
+ * since this runs once per country on every message that names an institution
+ * before a country.
+ */
+async function resolveInstitutionAcrossCountries(
+  query: string,
+  signal?: AbortSignal,
+): Promise<{ country: CountryInfo; institution: Institution } | null> {
+  const countries = listSupportedCountries();
+  const results = await Promise.all(
+    countries.map(async (country) => {
+      try {
+        const institutions = await getInstitutions(country.currencyCode, signal);
+        const matches = findInstitutionMatches(query, institutions);
+        if (matches.length === 1) return { country, institution: matches[0]! };
+      } catch {
+        // Ignore per-corridor lookup failures — worst case we miss an inference.
+      }
+      return null;
+    }),
+  );
+  const hits = results.filter((r): r is { country: CountryInfo; institution: Institution } => r !== null);
+  return hits.length === 1 ? hits[0]! : null;
+}
+
+/**
  * Continue collecting remittance details across turns: country -> institution
  * -> account number, in that order. `answer` is the user's reply to whichever
  * question was asked last (undefined when called with a fully-formed intent).
@@ -1320,6 +1351,11 @@ async function continueRemittanceSlotFilling(
     if (!pending.institutionCode) {
       // A fresh reply always (re)sets the query — covers both a first answer
       // and a retry after a failed lookup below.
+      if (unconsumed && isGenericInstitutionQuery(unconsumed)) {
+        // No specific provider named (e.g. "a bank") — re-ask rather than
+        // treating it as a failed lookup against the full institution list.
+        unconsumed = undefined;
+      }
       if (unconsumed) {
         pending.institutionQuery = unconsumed;
         unconsumed = undefined;
@@ -1553,6 +1589,9 @@ async function continueOnRampSlotFilling(
     }
 
     if (!pending.institutionCode) {
+      if (unconsumed && isGenericInstitutionQuery(unconsumed)) {
+        unconsumed = undefined;
+      }
       if (unconsumed) {
         pending.institutionQuery = unconsumed;
         unconsumed = undefined;
@@ -1682,7 +1721,25 @@ export async function onrampFromIntent(
       pending.accountIdentifier = undefined;
     }
   }
-  if (intent.institutionHint && !pending.institutionCode && !pending.institutionQuery) {
+  if (
+    intent.institutionHint &&
+    !pending.countryCode &&
+    !isGenericInstitutionQuery(intent.institutionHint)
+  ) {
+    const crossMatch = await resolveInstitutionAcrossCountries(intent.institutionHint, signal);
+    if (crossMatch) {
+      pending.countryCode = crossMatch.country.countryCode;
+      pending.fiatCurrency = crossMatch.country.currencyCode;
+      pending.institutionCode = crossMatch.institution.code;
+      pending.institutionName = crossMatch.institution.name;
+    }
+  }
+  if (
+    intent.institutionHint &&
+    !pending.institutionCode &&
+    !pending.institutionQuery &&
+    !isGenericInstitutionQuery(intent.institutionHint)
+  ) {
     pending.institutionQuery = intent.institutionHint;
   }
   if (intent.accountIdentifier && !pending.accountIdentifier) {
@@ -1781,7 +1838,25 @@ export async function remittanceFromIntent(
       pending.accountIdentifier = undefined;
     }
   }
-  if (intent.institutionHint && !pending.institutionCode && !pending.institutionQuery) {
+  if (
+    intent.institutionHint &&
+    !pending.countryCode &&
+    !isGenericInstitutionQuery(intent.institutionHint)
+  ) {
+    const crossMatch = await resolveInstitutionAcrossCountries(intent.institutionHint, signal);
+    if (crossMatch) {
+      pending.countryCode = crossMatch.country.countryCode;
+      pending.currencyCode = crossMatch.country.currencyCode;
+      pending.institutionCode = crossMatch.institution.code;
+      pending.institutionName = crossMatch.institution.name;
+    }
+  }
+  if (
+    intent.institutionHint &&
+    !pending.institutionCode &&
+    !pending.institutionQuery &&
+    !isGenericInstitutionQuery(intent.institutionHint)
+  ) {
     pending.institutionQuery = intent.institutionHint;
   }
   if (intent.accountIdentifier && !pending.accountIdentifier) {

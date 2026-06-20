@@ -23,6 +23,18 @@ const COUNTRIES: Record<string, CountryInfo> = {
 /** All supported countries, for prompting the user. */
 export const SUPPORTED_COUNTRIES = ["Nigeria", "Kenya", "Uganda", "Tanzania", "Malawi"];
 
+/** One CountryInfo per supported currency, for searching across all corridors. */
+export function listSupportedCountries(): CountryInfo[] {
+  const seen = new Set<string>();
+  const out: CountryInfo[] = [];
+  for (const c of Object.values(COUNTRIES)) {
+    if (seen.has(c.currencyCode)) continue;
+    seen.add(c.currencyCode);
+    out.push(c);
+  }
+  return out;
+}
+
 const CURRENCY_SYMBOLS: Record<string, string> = {
   NGN: "₦",
   KES: "KSh",
