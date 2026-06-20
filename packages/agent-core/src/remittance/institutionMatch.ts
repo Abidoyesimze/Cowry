@@ -39,6 +39,21 @@ const ALIASES: Record<string, string[]> = {
   moovmoney:    ["moov"],
 };
 
+// Words that mean "no specific provider named" when that's ALL the query
+// contains (e.g. "a bank", "the bank", "mobile money") — as opposed to a
+// real but unmatched name, these should never be treated as a failed lookup.
+const GENERIC_INSTITUTION_WORDS = new Set([
+  "a", "an", "the", "any", "bank", "banks", "account", "provider",
+  "mobile", "money",
+]);
+
+/** True when `query` names no specific bank/provider at all (just filler words). */
+export function isGenericInstitutionQuery(query: string): boolean {
+  const words = query.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+  if (words.length === 0) return true;
+  return words.every((w) => GENERIC_INSTITUTION_WORDS.has(w));
+}
+
 function rawNormalize(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]/g, "");
 }

@@ -85,6 +85,23 @@ const ALIASES = {
         "moov"
     ]
 };
+const GENERIC_INSTITUTION_WORDS = new Set([
+    "a",
+    "an",
+    "the",
+    "any",
+    "bank",
+    "banks",
+    "account",
+    "provider",
+    "mobile",
+    "money"
+]);
+export function isGenericInstitutionQuery(query) {
+    const words = query.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+    if (words.length === 0) return true;
+    return words.every((w)=>GENERIC_INSTITUTION_WORDS.has(w));
+}
 function rawNormalize(name) {
     return name.toLowerCase().replace(/[^a-z0-9]/g, "");
 }

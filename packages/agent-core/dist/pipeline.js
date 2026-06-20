@@ -12,9 +12,9 @@ import { getAgentIdentity } from "./agent/identity.js";
 import { clearDraft, getPendingDraft, saveDraft, setPendingDraft, setEarnOpportunities, getEarnOpportunity, setPendingYieldDeposit, getPendingYieldDeposit, setPendingGroupMembers, getPendingGroupMembers, setPendingRemittance, getPendingRemittance, setPendingRemittanceQuote, getPendingRemittanceQuote, setPendingOnRamp, getPendingOnRamp, setPendingOnRampOrder, getPendingOnRampOrder, setOnRampOrderSession, getOnRampOrderSettled } from "./state.js";
 import { getOpportunities, getUserPositions, formatOpportunitiesList, formatApy } from "./lifi/earnClient.js";
 import { getDepositQuote, estimateDailyEarnings } from "./lifi/composerClient.js";
-import { resolveCountry, getCurrencySymbol, SUPPORTED_COUNTRIES } from "./remittance/countries.js";
+import { resolveCountry, getCurrencySymbol, SUPPORTED_COUNTRIES, listSupportedCountries } from "./remittance/countries.js";
 import { getInstitutions, verifyAccount, createOffRampOrder, createOnRampOrder } from "./remittance/paycrestClient.js";
-import { findInstitutionMatches } from "./remittance/institutionMatch.js";
+import { findInstitutionMatches, isGenericInstitutionQuery } from "./remittance/institutionMatch.js";
 import { findRecipientByNickname, decryptAccountIdentifier } from "./remittance/recipients.js";
 function parseGroupId(raw) {
     if (raw === undefined || raw === null) return null;
@@ -1148,6 +1148,22 @@ async function buildRemittanceQuote(sessionId, slots, walletAddress, signal) {
         feeLabel
     };
 }
+async function resolveInstitutionAcrossCountries(query, signal) {
+    const countries = listSupportedCountries();
+    const results = await Promise.all(countries.map(async (country)=>{
+        try {
+            const institutions = await getInstitutions(country.currencyCode, signal);
+            const matches = findInstitutionMatches(query, institutions);
+            if (matches.length === 1) return {
+                country,
+                institution: matches[0]
+            };
+        } catch  {}
+        return null;
+    }));
+    const hits = results.filter((r)=>r !== null);
+    return hits.length === 1 ? hits[0] : null;
+}
 async function continueRemittanceSlotFilling(sessionId, pending, walletAddress, answer, signal) {
     let unconsumed = answer?.trim() || undefined;
     if (!pending.currencyCode) {
@@ -1186,6 +1202,9 @@ async function continueRemittanceSlotFilling(sessionId, pending, walletAddress, 
             }
         }
         if (!pending.institutionCode) {
+            if (unconsumed && isGenericInstitutionQuery(unconsumed)) {
+                unconsumed = undefined;
+            }
             if (unconsumed) {
                 pending.institutionQuery = unconsumed;
                 unconsumed = undefined;
@@ -1378,6 +1397,9 @@ async function continueOnRampSlotFilling(sessionId, pending, walletAddress, answ
             }
         }
         if (!pending.institutionCode) {
+            if (unconsumed && isGenericInstitutionQuery(unconsumed)) {
+                unconsumed = undefined;
+            }
             if (unconsumed) {
                 pending.institutionQuery = unconsumed;
                 unconsumed = undefined;
@@ -1497,7 +1519,16 @@ export async function onrampFromIntent(intent, walletAddress, sessionId, signal)
             pending.accountIdentifier = undefined;
         }
     }
-    if (intent.institutionHint && !pending.institutionCode && !pending.institutionQuery) {
+    if (intent.institutionHint && !pending.countryCode && !isGenericInstitutionQuery(intent.institutionHint)) {
+        const crossMatch = await resolveInstitutionAcrossCountries(intent.institutionHint, signal);
+        if (crossMatch) {
+            pending.countryCode = crossMatch.country.countryCode;
+            pending.fiatCurrency = crossMatch.country.currencyCode;
+            pending.institutionCode = crossMatch.institution.code;
+            pending.institutionName = crossMatch.institution.name;
+        }
+    }
+    if (intent.institutionHint && !pending.institutionCode && !pending.institutionQuery && !isGenericInstitutionQuery(intent.institutionHint)) {
         pending.institutionQuery = intent.institutionHint;
     }
     if (intent.accountIdentifier && !pending.accountIdentifier) {
@@ -1574,7 +1605,16 @@ export async function remittanceFromIntent(intent, walletAddress, sessionId, sig
             pending.accountIdentifier = undefined;
         }
     }
-    if (intent.institutionHint && !pending.institutionCode && !pending.institutionQuery) {
+    if (intent.institutionHint && !pending.countryCode && !isGenericInstitutionQuery(intent.institutionHint)) {
+        const crossMatch = await resolveInstitutionAcrossCountries(intent.institutionHint, signal);
+        if (crossMatch) {
+            pending.countryCode = crossMatch.country.countryCode;
+            pending.currencyCode = crossMatch.country.currencyCode;
+            pending.institutionCode = crossMatch.institution.code;
+            pending.institutionName = crossMatch.institution.name;
+        }
+    }
+    if (intent.institutionHint && !pending.institutionCode && !pending.institutionQuery && !isGenericInstitutionQuery(intent.institutionHint)) {
         pending.institutionQuery = intent.institutionHint;
     }
     if (intent.accountIdentifier && !pending.accountIdentifier) {
